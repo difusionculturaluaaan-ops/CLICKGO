@@ -1,6 +1,6 @@
 'use client'
 export const dynamic = 'force-dynamic'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { ref, get, update, push, set } from 'firebase/database'
 import { db } from '@/shared/lib/firebase/config'
@@ -9,6 +9,15 @@ import { obtenerRutas } from '@/features/routes/services/rutas.service'
 import type { Usuario, Ruta, Parada } from '@/shared/types'
 
 const ORG_DEMO = 'org-demo-001'
+
+// ─── Tipos para import ──────────────────────────────────────────────────────
+interface UsuarioImport {
+  nombre: string
+  telefono: string
+  rol: 'trabajador' | 'chofer'
+  rutaNombre?: string   // se resuelve a rutaId en el paso de confirmación
+  _error?: string
+}
 
 export default function AdminUsuariosPage() {
   const { autenticado, cargando } = useAuth()
@@ -21,6 +30,11 @@ export default function AdminUsuariosPage() {
   // Modal nuevo usuario
   const [mostrarModal, setMostrarModal] = useState(false)
   const [nuevoUsuario, setNuevoUsuario] = useState({ nombre: '', telefono: '+52', rol: 'trabajador' as 'trabajador' | 'chofer', rutaAsignada: '', paradaAsignada: '' })
+  // Import masivo
+  const [importPreview, setImportPreview] = useState<UsuarioImport[] | null>(null)
+  const [importando, setImportando] = useState(false)
+  const [importResultado, setImportResultado] = useState<{ ok: number; errores: number } | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!cargando && !autenticado) router.replace('/admin')
@@ -79,6 +93,137 @@ export default function AdminUsuariosPage() {
     await cargarDatos()
   }
 
+  // ── Descargar plantilla Excel ──────────────────────────────────────────────
+  async function handleDescargarPlantilla() {
+    const ExcelJS = (await import('exceljs')).default
+    const wb = new ExcelJS.Workbook()
+    const ws = wb.addWorksheet('Trabajadores')
+
+    ws.columns = [
+      { header: 'nombre',   key: 'nombre',    width: 25 },
+      { header: 'telefono', key: 'telefono',  width: 18 },
+      { header: 'rol',      key: 'rol',       width: 14 },
+      { header: 'ruta',     key: 'ruta',      width: 25 },
+    ]
+
+    // Estilo de encabezado
+    ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }
+    ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } }
+
+    // Filas de ejemplo
+    ws.addRow({ nombre: 'Juan Pérez García',   telefono: '+528441234567', rol: 'trabajador', ruta: 'Ruta Matutina Norte' })
+    ws.addRow({ nombre: 'María López Sánchez', telefono: '+528449876543', rol: 'trabajador', ruta: 'Ruta Matutina Norte' })
+    ws.addRow({ nombre: 'Carlos Ruiz Díaz',    telefono: '+528445551234', rol: 'chofer',     ruta: 'Ruta Matutina Norte' })
+
+    // Validación de rol en columna C
+    ws.getColumn('rol').eachCell({ includeEmpty: false }, (cell, row) => {
+      if (row > 1) {
+        cell.dataValidation = {
+          type: 'list',
+          allowBlank: false,
+          formulae: ['"trabajador,chofer"'],
+          showErrorMessage: true,
+          errorTitle: 'Rol inválido',
+          error: 'Usa: trabajador o chofer',
+        }
+      }
+    })
+
+    // Nota informativa
+    ws.getCell('F1').value = 'Columna "ruta" es opcional. Debe coincidir exactamente con el nombre de una ruta en el sistema.'
+    ws.getCell('F1').font = { italic: true, color: { argb: 'FF6B7280' } }
+
+    const buffer = await wb.xlsx.writeBuffer()
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'plantilla-trabajadores-clickgo.xlsx'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // ── Leer Excel y generar preview ───────────────────────────────────────────
+  async function handleArchivoSeleccionado(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+
+    const ExcelJS = (await import('exceljs')).default
+    const wb = new ExcelJS.Workbook()
+    const buffer = await file.arrayBuffer()
+    await wb.xlsx.load(buffer)
+
+    const ws = wb.worksheets[0]
+    if (!ws) return
+
+    // Leer encabezados de la primera fila
+    const headers: string[] = []
+    ws.getRow(1).eachCell(cell => headers.push(String(cell.value ?? '').toLowerCase().trim()))
+
+    const iNombre   = headers.indexOf('nombre')
+    const iTelefono = headers.indexOf('telefono')
+    const iRol      = headers.indexOf('rol')
+    const iRuta     = headers.indexOf('ruta')
+
+    const filas: UsuarioImport[] = []
+    ws.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return
+      const nombre   = String(row.getCell(iNombre   + 1).value ?? '').trim()
+      const telefono = String(row.getCell(iTelefono + 1).value ?? '').trim()
+      const rolRaw   = String(row.getCell(iRol      + 1).value ?? '').trim().toLowerCase()
+      const rutaNombre = iRuta >= 0 ? String(row.getCell(iRuta + 1).value ?? '').trim() : ''
+
+      if (!nombre && !telefono) return // fila vacía
+
+      const rol = (rolRaw === 'chofer' ? 'chofer' : 'trabajador') as 'trabajador' | 'chofer'
+      let _error: string | undefined
+
+      if (!nombre) _error = 'Falta nombre'
+      else if (!telefono) _error = 'Falta teléfono'
+      else if (!telefono.startsWith('+')) _error = 'Teléfono debe empezar con +'
+
+      filas.push({ nombre, telefono, rol, rutaNombre: rutaNombre || undefined, _error })
+    })
+
+    setImportPreview(filas)
+    setImportResultado(null)
+  }
+
+  // ── Confirmar import ───────────────────────────────────────────────────────
+  async function handleConfirmarImport() {
+    if (!importPreview) return
+    setImportando(true)
+
+    // Mapa de nombre de ruta → id
+    const rutaMap = new Map(rutas.map(r => [r.nombre.toLowerCase(), r.id]))
+
+    let ok = 0
+    let errores = 0
+
+    for (const fila of importPreview) {
+      if (fila._error) { errores++; continue }
+      const rutaId = fila.rutaNombre ? (rutaMap.get(fila.rutaNombre.toLowerCase()) ?? undefined) : undefined
+      const newRef = push(ref(db, 'usuarios'))
+      const id = newRef.key!
+      await set(newRef, {
+        id,
+        nombre: fila.nombre,
+        telefono: fila.telefono,
+        orgId: ORG_DEMO,
+        rol: fila.rol,
+        rutaAsignada: rutaId,
+        creadoEn: Date.now(),
+      })
+      ok++
+    }
+
+    setImportResultado({ ok, errores })
+    setImportPreview(null)
+    setImportando(false)
+    await cargarDatos()
+  }
+
   const usuariosFiltrados = usuarios.filter(u => filtro === 'todos' ? true : u.rol === filtro)
 
   function getParadasDeRuta(rutaId: string): Parada[] {
@@ -99,15 +244,55 @@ export default function AdminUsuariosPage() {
             <p className="text-teal-200 text-xs">{usuariosFiltrados.length} usuarios</p>
           </div>
         </div>
-        <button
-          onClick={() => setMostrarModal(true)}
-          className="bg-white text-teal-700 px-3 py-1.5 rounded-xl text-sm font-medium"
-        >
-          + Agregar
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Importar Excel */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={handleArchivoSeleccionado}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded-xl text-sm font-medium"
+          >
+            📥 Importar
+          </button>
+          <button
+            onClick={() => setMostrarModal(true)}
+            className="bg-white text-teal-700 px-3 py-1.5 rounded-xl text-sm font-medium"
+          >
+            + Agregar
+          </button>
+        </div>
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-4 space-y-4">
+        {/* Resultado import */}
+        {importResultado && (
+          <div className={`rounded-2xl p-4 flex items-center justify-between ${importResultado.errores > 0 ? 'bg-yellow-50 border border-yellow-200' : 'bg-green-50 border border-green-200'}`}>
+            <div>
+              <p className="font-semibold text-gray-800">Importación completada</p>
+              <p className="text-sm text-gray-600">
+                {importResultado.ok} importados{importResultado.errores > 0 ? ` · ${importResultado.errores} con errores omitidos` : ''}
+              </p>
+            </div>
+            <button onClick={() => setImportResultado(null)} className="text-gray-400 text-lg">✕</button>
+          </div>
+        )}
+
+        {/* Banner descarga plantilla */}
+        <div className="bg-teal-50 border border-teal-200 rounded-2xl px-4 py-3 flex items-center justify-between">
+          <p className="text-teal-700 text-sm">¿Tienes una lista en Excel? Usa nuestra plantilla</p>
+          <button
+            onClick={handleDescargarPlantilla}
+            className="text-teal-700 font-semibold text-sm underline shrink-0"
+          >
+            Descargar plantilla
+          </button>
+        </div>
+
         {/* Filtros */}
         <div className="flex gap-2">
           {(['todos', 'trabajador', 'chofer'] as const).map(f => (
@@ -155,7 +340,6 @@ export default function AdminUsuariosPage() {
 
                 {usuario.rol !== 'admin' && (
                   <div className="space-y-2">
-                    {/* Asignar ruta */}
                     <div>
                       <label className="text-xs text-gray-500 font-medium">Ruta asignada</label>
                       <select
@@ -171,7 +355,6 @@ export default function AdminUsuariosPage() {
                       </select>
                     </div>
 
-                    {/* Asignar parada (solo trabajadores) */}
                     {usuario.rol === 'trabajador' && usuario.rutaAsignada && (
                       <div>
                         <label className="text-xs text-gray-500 font-medium">Parada asignada</label>
@@ -189,7 +372,6 @@ export default function AdminUsuariosPage() {
                       </div>
                     )}
 
-                    {/* Resumen asignación */}
                     {rutaAsignada && (
                       <div className="bg-teal-50 rounded-xl px-3 py-2 text-xs text-teal-700">
                         ✅ {rutaAsignada.nombre}
@@ -244,6 +426,63 @@ export default function AdminUsuariosPage() {
                 className="flex-1 py-3 bg-teal-700 text-white rounded-xl font-medium disabled:opacity-50"
               >
                 Crear
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal preview import */}
+      {importPreview && (
+        <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-50 overflow-hidden">
+          <div className="bg-white w-full max-w-md rounded-t-2xl flex flex-col" style={{ maxHeight: '85vh' }}>
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="font-bold text-gray-900">Vista previa — {importPreview.length} filas</h2>
+                <p className="text-xs text-gray-400">
+                  {importPreview.filter(f => !f._error).length} válidas ·{' '}
+                  {importPreview.filter(f => !!f._error).length} con errores
+                </p>
+              </div>
+              <button onClick={() => setImportPreview(null)} className="text-gray-400 text-xl">✕</button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 px-4 py-3 space-y-2">
+              {importPreview.map((fila, i) => (
+                <div
+                  key={i}
+                  className={`rounded-xl px-3 py-2.5 text-sm ${fila._error ? 'bg-red-50 border border-red-200' : 'bg-gray-50'}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-gray-800 truncate">{fila.nombre || '—'}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ml-2 shrink-0 ${
+                      fila.rol === 'chofer' ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-600'
+                    }`}>{fila.rol}</span>
+                  </div>
+                  <p className="text-gray-500 text-xs">{fila.telefono}</p>
+                  {fila.rutaNombre && <p className="text-teal-600 text-xs">📍 {fila.rutaNombre}</p>}
+                  {fila._error && <p className="text-red-500 text-xs mt-1">⚠ {fila._error}</p>}
+                </div>
+              ))}
+            </div>
+
+            <div className="px-5 py-4 border-t border-gray-100 flex gap-3">
+              <button
+                onClick={() => setImportPreview(null)}
+                className="flex-1 py-3 border border-gray-200 rounded-xl text-gray-600"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmarImport}
+                disabled={importando || importPreview.filter(f => !f._error).length === 0}
+                className="flex-1 py-3 bg-teal-700 text-white rounded-xl font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {importando ? (
+                  <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Importando...</>
+                ) : (
+                  `Confirmar ${importPreview.filter(f => !f._error).length} usuarios`
+                )}
               </button>
             </div>
           </div>
