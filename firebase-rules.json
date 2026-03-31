@@ -1,0 +1,43 @@
+{
+  "rules": {
+    // ── Ubicaciones GPS ─────────────────────────────────────────────────────
+    // Lectura PÚBLICA: cualquier app puede ver dónde está el camión
+    // Escritura: solo choferes autenticados
+    "ubicaciones": {
+      "$rutaId": {
+        ".read": true,
+        ".write": "auth != null && root.child('usuarios/' + auth.uid + '/rol').val() === 'chofer'"
+      }
+    },
+
+    // ── Organizaciones ───────────────────────────────────────────────────────
+    // Solo usuarios autenticados pueden leer
+    // Solo admins de esa org pueden modificar
+    "organizaciones": {
+      "$orgId": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('usuarios/' + auth.uid + '/rol').val() === 'admin' && root.child('usuarios/' + auth.uid + '/orgId').val() === $orgId"
+      }
+    },
+
+    // ── Rutas ────────────────────────────────────────────────────────────────
+    // Lectura: cualquier usuario autenticado
+    // Escritura: admin o chofer (choferes pueden actualizar estado de su ruta)
+    "rutas": {
+      "$rutaId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (root.child('usuarios/' + auth.uid + '/rol').val() === 'admin' || root.child('usuarios/' + auth.uid + '/rol').val() === 'chofer')"
+      }
+    },
+
+    // ── Usuarios ─────────────────────────────────────────────────────────────
+    // Cada usuario lee y escribe solo su propio perfil
+    // Admins pueden leer y escribir cualquier perfil
+    "usuarios": {
+      "$userId": {
+        ".read": "auth != null && (auth.uid === $userId || root.child('usuarios/' + auth.uid + '/rol').val() === 'admin')",
+        ".write": "auth != null && (auth.uid === $userId || root.child('usuarios/' + auth.uid + '/rol').val() === 'admin')"
+      }
+    }
+  }
+}
