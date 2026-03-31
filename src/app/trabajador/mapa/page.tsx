@@ -53,9 +53,10 @@ export default function TrabajadorMapaPage() {
   )
   const [ultimaActualizacion, setUltimaActualizacion] = useState<string>('')
 
-  useEffect(() => {
-    if (!cargando && !autenticado) router.replace('/trabajador')
-  }, [autenticado, cargando, router])
+  // En demo: no redirigir si no hay auth — permitir acceso directo
+  // useEffect(() => {
+  //   if (!cargando && !autenticado) router.replace('/trabajador')
+  // }, [autenticado, cargando, router])
 
   useEffect(() => {
     if (ubicacion?.timestamp) {
@@ -69,7 +70,7 @@ export default function TrabajadorMapaPage() {
     router.replace('/trabajador')
   }
 
-  if (cargando || !autenticado) {
+  if (cargando) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="w-8 h-8 border-4 border-teal-400 border-t-transparent rounded-full animate-spin" />
@@ -81,7 +82,7 @@ export default function TrabajadorMapaPage() {
   const config = ESTADO_CONFIG[estadoActual]
 
   return (
-    <div className="min-h-screen bg-gray-900 flex flex-col">
+    <div className="min-h-screen bg-gray-900 flex flex-col max-w-md mx-auto w-full shadow-2xl">
       {/* Header */}
       <header className="bg-gray-900 border-b border-gray-700 px-4 py-3 flex items-center justify-between">
         <div>
@@ -94,8 +95,8 @@ export default function TrabajadorMapaPage() {
         </div>
       </header>
 
-      {/* Mapa — ocupa la mayor parte */}
-      <div className="flex-1 relative" style={{ minHeight: '55vh' }}>
+      {/* Mapa */}
+      <div style={{ overflow: 'hidden' }}>
         <MapaTiempoReal
           ubicacionCamion={ubicacion}
           paradaLat={PARADA_DEMO.lat}
