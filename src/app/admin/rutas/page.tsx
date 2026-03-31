@@ -1,0 +1,284 @@
+'use client'
+import { useEffect, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
+import { useAuth } from '@/features/auth/hooks/useAuth'
+import { obtenerRutas, crearRuta, eliminarRuta, actualizarRuta } from '@/features/routes/services/rutas.service'
+import type { Ruta, Parada, Turno, EstadoRuta } from '@/shared/types'
+
+const MapaParadas = dynamic(() => import('@/features/routes/components/MapaParadas').then(m => m.MapaParadas), {
+  ssr: false,
+  loading: () => <div className="w-full h-64 bg-gray-100 rounded-xl animate-pulse" />,
+})
+
+const ORG_DEMO = 'org-demo-001'
+
+const TURNO_LABELS: Record<Turno, string> = {
+  matutino: '🌅 Matutino',
+  vespertino: '🌆 Vespertino',
+  nocturno: '🌙 Nocturno',
+  mixto: '🔄 Mixto',
+}
+
+const ESTADO_COLORS: Record<EstadoRuta, string> = {
+  activa: 'bg-green-100 text-green-700',
+  programada: 'bg-blue-100 text-blue-700',
+  completada: 'bg-gray-100 text-gray-500',
+  cancelada: 'bg-red-100 text-red-500',
+}
+
+type Vista = 'lista' | 'nueva' | 'editar'
+
+const RUTA_VACIA = { nombre: '', turno: 'matutino' as Turno, paradas: [] as Parada[], estado: 'programada' as EstadoRuta }
+
+export default function AdminRutasPage() {
+  const { autenticado, cargando } = useAuth()
+  const router = useRouter()
+  const [rutas, setRutas] = useState<Ruta[]>([])
+  const [cargandoRutas, setCargandoRutas] = useState(true)
+  const [vista, setVista] = useState<Vista>('lista')
+  const [rutaActual, setRutaActual] = useState<Partial<Ruta>>(RUTA_VACIA)
+  const [guardando, setGuardando] = useState(false)
+
+  useEffect(() => {
+    if (!cargando && !autenticado) router.replace('/admin')
+  }, [autenticado, cargando, router])
+
+  const cargarRutas = useCallback(async () => {
+    setCargandoRutas(true)
+    const data = await obtenerRutas(ORG_DEMO)
+    setRutas(data)
+    setCargandoRutas(false)
+  }, [])
+
+  useEffect(() => {
+    if (autenticado) cargarRutas()
+  }, [autenticado, cargarRutas])
+
+  async function handleGuardar() {
+    if (!rutaActual.nombre?.trim()) return
+    setGuardando(true)
+    try {
+      if (rutaActual.id) {
+        await actualizarRuta(rutaActual.id, rutaActual)
+      } else {
+        await crearRuta(ORG_DEMO, {
+          nombre: rutaActual.nombre!,
+          turno: rutaActual.turno ?? 'matutino',
+          paradas: rutaActual.paradas ?? [],
+          estado: 'programada',
+          orgId: ORG_DEMO,
+        })
+      }
+      await cargarRutas()
+      setVista('lista')
+      setRutaActual(RUTA_VACIA)
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  async function handleEliminar(rutaId: string) {
+    if (!confirm('¿Eliminar esta ruta? Esta acción no se puede deshacer.')) return
+    await eliminarRuta(rutaId)
+    await cargarRutas()
+  }
+
+  function handleEditar(ruta: Ruta) {
+    setRutaActual(ruta)
+    setVista('editar')
+  }
+
+  if (cargando || !autenticado) {
+    return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin" /></div>
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-teal-700 text-white px-4 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button onClick={() => { setVista('lista'); router.push('/admin/dashboard') }} className="text-teal-200">
+            ←
+          </button>
+          <div>
+            <h1 className="font-bold">Gestión de Rutas</h1>
+            <p className="text-teal-200 text-xs">{rutas.length} rutas configuradas</p>
+          </div>
+        </div>
+        {vista === 'lista' && (
+          <button
+            onClick={() => { setRutaActual(RUTA_VACIA); setVista('nueva') }}
+            className="bg-white text-teal-700 px-3 py-1.5 rounded-xl text-sm font-medium"
+          >
+            + Nueva ruta
+          </button>
+        )}
+      </header>
+
+      <main className="max-w-2xl mx-auto px-4 py-6">
+        {/* Lista de rutas */}
+        {vista === 'lista' && (
+          <div className="space-y-3">
+            {cargandoRutas ? (
+              [1,2,3].map(i => <div key={i} className="h-24 bg-white rounded-2xl animate-pulse" />)
+            ) : rutas.length === 0 ? (
+              <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
+                <p className="text-4xl mb-3">🗺️</p>
+                <p className="text-gray-500 font-medium">No hay rutas aún</p>
+                <button
+                  onClick={() => { setRutaActual(RUTA_VACIA); setVista('nueva') }}
+                  className="mt-4 px-4 py-2 bg-teal-700 text-white rounded-xl text-sm"
+                >
+                  Crear primera ruta
+                </button>
+              </div>
+            ) : (
+              rutas.map((ruta) => (
+                <div key={ruta.id} className="bg-white rounded-2xl shadow-sm p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-gray-900">{ruta.nombre}</h3>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ESTADO_COLORS[ruta.estado]}`}>
+                          {ruta.estado}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        {TURNO_LABELS[ruta.turno]} · {ruta.paradas?.length ?? 0} paradas
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleEditar(ruta)}
+                        className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => handleEliminar(ruta.id)}
+                        className="px-3 py-1.5 text-sm bg-red-50 text-red-600 rounded-xl hover:bg-red-100"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                  {/* Paradas */}
+                  {ruta.paradas?.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {ruta.paradas.map((p, i) => (
+                        <span key={p.id} className="text-xs bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full">
+                          {i + 1}. {p.nombre}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Formulario nueva/editar ruta */}
+        {(vista === 'nueva' || vista === 'editar') && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl shadow-sm p-4 space-y-4">
+              <h2 className="font-semibold text-gray-800">
+                {vista === 'nueva' ? 'Nueva ruta' : 'Editar ruta'}
+              </h2>
+
+              {/* Nombre */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                <input
+                  type="text"
+                  value={rutaActual.nombre ?? ''}
+                  onChange={e => setRutaActual(p => ({ ...p, nombre: e.target.value }))}
+                  placeholder="Ej: Ruta Norte → Ciudad Industrial"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                />
+              </div>
+
+              {/* Turno */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Turno</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(Object.keys(TURNO_LABELS) as Turno[]).map(t => (
+                    <button
+                      key={t}
+                      onClick={() => setRutaActual(p => ({ ...p, turno: t }))}
+                      className={`py-2 rounded-xl text-sm font-medium border transition-colors ${
+                        rutaActual.turno === t
+                          ? 'bg-teal-700 text-white border-teal-700'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-teal-300'
+                      }`}
+                    >
+                      {TURNO_LABELS[t]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Mapa para agregar paradas */}
+            <div className="bg-white rounded-2xl shadow-sm p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-gray-800">Paradas</h3>
+                <p className="text-xs text-gray-400">Haz clic en el mapa para agregar</p>
+              </div>
+              <MapaParadas
+                paradas={rutaActual.paradas ?? []}
+                onChange={paradas => setRutaActual(p => ({ ...p, paradas }))}
+              />
+              {/* Lista de paradas */}
+              <div className="mt-3 space-y-1">
+                {(rutaActual.paradas ?? []).map((p, i) => (
+                  <div key={p.id} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-xl">
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 bg-teal-700 text-white rounded-full text-xs flex items-center justify-center font-bold">{i + 1}</span>
+                      <input
+                        value={p.nombre}
+                        onChange={e => {
+                          const nuevas = [...(rutaActual.paradas ?? [])]
+                          nuevas[i] = { ...nuevas[i], nombre: e.target.value }
+                          setRutaActual(prev => ({ ...prev, paradas: nuevas }))
+                        }}
+                        className="text-sm bg-transparent border-b border-gray-200 focus:outline-none focus:border-teal-500 w-40"
+                      />
+                    </div>
+                    <button
+                      onClick={() => {
+                        const nuevas = (rutaActual.paradas ?? []).filter((_, idx) => idx !== i)
+                        setRutaActual(prev => ({ ...prev, paradas: nuevas }))
+                      }}
+                      className="text-red-400 text-xs hover:text-red-600"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Acciones */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setVista('lista'); setRutaActual(RUTA_VACIA) }}
+                className="flex-1 py-3 border border-gray-200 rounded-xl text-gray-600 font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleGuardar}
+                disabled={guardando || !rutaActual.nombre?.trim()}
+                className="flex-1 py-3 bg-teal-700 text-white rounded-xl font-medium disabled:opacity-50"
+              >
+                {guardando ? 'Guardando...' : 'Guardar ruta'}
+              </button>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  )
+}
