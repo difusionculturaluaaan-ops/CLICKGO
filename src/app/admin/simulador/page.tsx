@@ -24,7 +24,7 @@ export default function SimuladorPage() {
   const [ubicacionActual, setUbicacionActual] = useState<{ lat: number; lng: number; speed: number; heading: number; accuracy: number; timestamp: number; active: boolean } | null>(null)
 
   const paradas = ruta?.paradas?.slice().sort((a, b) => a.orden - b.orden) ?? []
-  const { progreso, iniciar, detener, pausar, reanudar } = useSimuladorRuta(RUTA_DEMO, paradas)
+  const { progreso, iniciar, detener, pausar, reanudar } = useSimuladorRuta(RUTA_DEMO, paradas, ruta?.nombre ?? '')
 
   useEffect(() => {
     if (!cargando && !autenticado) router.replace('/admin')

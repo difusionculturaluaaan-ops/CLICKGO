@@ -151,3 +151,37 @@ export async function listarOrganizaciones(): Promise<Organization[]> {
     id,
   }))
 }
+
+// ─── Historial de puntualidad ──────────────────────────────────────────────────
+
+export interface RegistroParada {
+  paradaId: string
+  nombre: string
+  horaEstimada: string   // "06:25"
+  horaReal: string       // "06:27"
+  minutosRetraso: number // negativo = adelantado
+}
+
+export interface RegistroViaje {
+  id: string
+  rutaId: string
+  orgId: string
+  nombreRuta: string
+  fecha: string          // "2026-03-31"
+  inicioReal: number     // timestamp ms
+  finReal: number
+  paradas: RegistroParada[]
+  puntualidad: number    // 0-100 (% de paradas a tiempo)
+}
+
+export async function guardarRegistroViaje(viaje: Omit<RegistroViaje, 'id'>): Promise<void> {
+  const newRef = push(ref(db, `historial/${viaje.orgId}`))
+  await set(newRef, { ...viaje, id: newRef.key })
+}
+
+export async function obtenerHistorial(orgId: string): Promise<RegistroViaje[]> {
+  const snap = await get(ref(db, `historial/${orgId}`))
+  if (!snap.exists()) return []
+  return Object.values(snap.val() as Record<string, RegistroViaje>)
+    .sort((a, b) => b.inicioReal - a.inicioReal)
+}

@@ -149,11 +149,19 @@ export default function DashboardPage() {
           </button>
           <button
             onClick={() => router.push('/admin/simulador')}
-            className="col-span-2 bg-teal-700 rounded-2xl p-4 shadow-sm text-left hover:bg-teal-600 transition-colors"
+            className="bg-teal-700 rounded-2xl p-4 shadow-sm text-left hover:bg-teal-600 transition-colors"
           >
             <span className="text-2xl">🎬</span>
-            <p className="font-semibold text-white mt-2">Simulador de ruta</p>
-            <p className="text-teal-200 text-xs mt-0.5">Demo en tiempo real — mueve el camión por las paradas</p>
+            <p className="font-semibold text-white mt-2">Simulador</p>
+            <p className="text-teal-200 text-xs mt-0.5">Demo en tiempo real</p>
+          </button>
+          <button
+            onClick={() => router.push('/admin/reportes')}
+            className="bg-white rounded-2xl p-4 shadow-sm text-left hover:shadow-md transition-shadow"
+          >
+            <span className="text-2xl">📊</span>
+            <p className="font-semibold text-gray-800 mt-2">Reportes</p>
+            <p className="text-gray-400 text-xs mt-0.5">Puntualidad por ruta</p>
           </button>
         </div>
       </main>
