@@ -1,13 +1,14 @@
 'use client'
+export const dynamic = 'force-dynamic'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import dynamic from 'next/dynamic'
+import nextDynamic from 'next/dynamic'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useGPSReceiver } from '@/features/tracking/hooks/useGPSReceiver'
 import { cerrarSesion } from '@/shared/lib/firebase/auth'
 
 // Leaflet requiere client-side — dynamic import sin SSR
-const MapaTiempoReal = dynamic(
+const MapaTiempoReal = nextDynamic(
   () => import('@/features/tracking/components/MapaTiempoReal').then((m) => m.MapaTiempoReal),
   { ssr: false, loading: () => <div className="w-full h-full bg-gray-800 rounded-xl animate-pulse" /> }
 )

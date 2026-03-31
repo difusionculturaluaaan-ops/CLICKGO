@@ -1,12 +1,13 @@
 'use client'
+export const dynamic = 'force-dynamic'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import dynamic from 'next/dynamic'
+import nextDynamic from 'next/dynamic'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { obtenerRutas, crearRuta, eliminarRuta, actualizarRuta } from '@/features/routes/services/rutas.service'
 import type { Ruta, Parada, Turno, EstadoRuta } from '@/shared/types'
 
-const MapaParadas = dynamic(() => import('@/features/routes/components/MapaParadas').then(m => m.MapaParadas), {
+const MapaParadas = nextDynamic(() => import('@/features/routes/components/MapaParadas').then(m => m.MapaParadas), {
   ssr: false,
   loading: () => <div className="w-full h-64 bg-gray-100 rounded-xl animate-pulse" />,
 })
