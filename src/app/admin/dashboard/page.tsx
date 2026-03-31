@@ -147,6 +147,14 @@ export default function DashboardPage() {
             <p className="font-semibold text-gray-800 mt-2">Trabajadores</p>
             <p className="text-gray-400 text-xs mt-0.5">Asignar rutas y paradas</p>
           </button>
+          <button
+            onClick={() => router.push('/admin/simulador')}
+            className="col-span-2 bg-teal-700 rounded-2xl p-4 shadow-sm text-left hover:bg-teal-600 transition-colors"
+          >
+            <span className="text-2xl">🎬</span>
+            <p className="font-semibold text-white mt-2">Simulador de ruta</p>
+            <p className="text-teal-200 text-xs mt-0.5">Demo en tiempo real — mueve el camión por las paradas</p>
+          </button>
         </div>
       </main>
     </div>
