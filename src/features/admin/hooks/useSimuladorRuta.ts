@@ -102,7 +102,11 @@ export function useSimuladorRuta(rutaId: string, paradas: Parada[], nombreRuta =
       const speed = Math.round(15 + curva * 40)
 
       actualizacionesRef.current++
-      await escribirUbicacion(rutaId, { lat, lng, speed, heading, accuracy: 8, active: true })
+      try {
+        await escribirUbicacion(rutaId, { lat, lng, speed, heading, accuracy: 8, active: true })
+      } catch {
+        // Continuar simulación aunque falle la escritura (ej. reglas Firebase)
+      }
 
       setProgreso({
         estado: 'corriendo',
