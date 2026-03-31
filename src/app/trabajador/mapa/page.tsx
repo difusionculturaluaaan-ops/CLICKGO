@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import nextDynamic from 'next/dynamic'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useGPSReceiver } from '@/features/tracking/hooks/useGPSReceiver'
+import { useFCMToken } from '@/shared/hooks/useFCMToken'
 import { cerrarSesion } from '@/shared/lib/firebase/auth'
 
 // Leaflet requiere client-side — dynamic import sin SSR
@@ -52,6 +53,7 @@ export default function TrabajadorMapaPage() {
     PARADA_DEMO.lat,
     PARADA_DEMO.lng
   )
+  const { permiso, solicitarPermiso } = useFCMToken(usuario?.id ?? null)
   const [ultimaActualizacion, setUltimaActualizacion] = useState<string>('')
 
   // En demo: no redirigir si no hay auth — permitir acceso directo
@@ -95,6 +97,19 @@ export default function TrabajadorMapaPage() {
           <button onClick={handleLogout} className="text-gray-400 text-xs underline">Salir</button>
         </div>
       </header>
+
+      {/* Banner notificaciones */}
+      {permiso === 'default' && (
+        <div className="bg-teal-700 px-4 py-3 flex items-center justify-between gap-3">
+          <p className="text-white text-sm">Activa notificaciones para saber cuándo llega tu camión</p>
+          <button
+            onClick={solicitarPermiso}
+            className="shrink-0 bg-white text-teal-700 font-bold text-xs px-3 py-1.5 rounded-full"
+          >
+            Activar
+          </button>
+        </div>
+      )}
 
       {/* Mapa */}
       <div style={{ overflow: 'hidden' }}>
