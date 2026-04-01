@@ -24,35 +24,108 @@ export default function Home() {
       </nav>
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
-      <section className="max-w-5xl mx-auto px-6 pt-20 pb-24 text-center">
-        <div className="inline-flex items-center gap-2 bg-teal-50 text-teal-700 px-4 py-1.5 rounded-full text-sm font-medium mb-8">
-          <span className="w-2 h-2 bg-teal-500 rounded-full animate-pulse" />
-          GPS en tiempo real · Sin app · 100% web
+      <section className="max-w-6xl mx-auto px-6 pt-16 pb-20">
+        <div className="flex flex-col md:flex-row items-center gap-12">
+          {/* Texto */}
+          <div className="flex-1 text-center md:text-left">
+            <div className="inline-flex items-center gap-2 bg-teal-50 text-teal-700 px-4 py-1.5 rounded-full text-sm font-medium mb-6">
+              <span className="w-2 h-2 bg-teal-500 rounded-full animate-pulse" />
+              GPS en tiempo real · Sin app · 100% web
+            </div>
+            <h1 className="text-4xl md:text-5xl font-black text-gray-900 leading-tight mb-5">
+              Tus trabajadores saben{' '}
+              <span className="text-teal-600">exactamente cuándo llega</span>{' '}
+              su camión
+            </h1>
+            <p className="text-lg text-gray-500 mb-8">
+              ClickGo conecta conductores y pasajeros en tiempo real. Sin esperas inciertas,
+              sin llamadas, sin estrés. Tu flota siempre visible en el mapa.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <a
+                href="#contacto"
+                className="bg-teal-600 text-white px-7 py-3.5 rounded-2xl font-bold text-base hover:bg-teal-700 transition-colors shadow-lg shadow-teal-200"
+              >
+                Ver demo en vivo →
+              </a>
+              <a
+                href="/trabajador/mapa"
+                className="bg-white text-teal-600 border-2 border-teal-200 px-7 py-3.5 rounded-2xl font-bold text-base hover:border-teal-400 transition-colors"
+              >
+                Probar ahora
+              </a>
+            </div>
+            <p className="text-gray-400 text-sm mt-4">Sin tarjeta de crédito · 15 días de prueba gratis</p>
+          </div>
+
+          {/* Mockup celular */}
+          <div className="flex-shrink-0 w-56 md:w-64">
+            <div className="relative bg-gray-900 rounded-[2.5rem] p-3 shadow-2xl ring-4 ring-gray-800">
+              {/* Notch */}
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 w-16 h-4 bg-gray-800 rounded-full z-10" />
+              {/* Pantalla */}
+              <div className="bg-gray-800 rounded-[2rem] overflow-hidden" style={{ height: '480px' }}>
+                {/* Header app */}
+                <div className="bg-gray-900 px-3 pt-8 pb-2 flex items-center justify-between">
+                  <div>
+                    <p className="text-white font-bold text-xs">ClickGo</p>
+                    <p className="text-gray-400 text-xs">María López</p>
+                  </div>
+                  <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                </div>
+                {/* Mapa simulado */}
+                <div className="relative bg-stone-200 mx-2 rounded-xl overflow-hidden" style={{ height: '220px' }}>
+                  {/* Calles */}
+                  <div className="absolute inset-0 opacity-60">
+                    <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white" />
+                    <div className="absolute top-1/3 left-0 right-0 h-px bg-white" />
+                    <div className="absolute top-2/3 left-0 right-0 h-px bg-white" />
+                    <div className="absolute left-1/3 top-0 bottom-0 w-0.5 bg-white" />
+                    <div className="absolute left-2/3 top-0 bottom-0 w-px bg-white" />
+                    <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-amber-400" />
+                    <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-amber-400" />
+                  </div>
+                  {/* Marcador camión */}
+                  <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                    <div className="w-5 h-5 bg-amber-400 rounded-full border-2 border-white shadow-lg flex items-center justify-center">
+                      <span className="text-xs">🚌</span>
+                    </div>
+                  </div>
+                  {/* Marcador parada */}
+                  <div className="absolute bottom-6 right-8">
+                    <div className="w-4 h-4 bg-teal-600 rounded-full border-2 border-white shadow" />
+                    <p className="text-xs text-teal-800 font-bold mt-0.5 whitespace-nowrap">Tu parada</p>
+                  </div>
+                </div>
+                {/* Panel ETA */}
+                <div className="mx-2 mt-2 bg-yellow-500 rounded-xl p-2.5 flex items-center gap-2">
+                  <span className="text-lg">⚡</span>
+                  <div>
+                    <p className="text-white font-bold text-xs">¡Ya viene!</p>
+                    <p className="text-yellow-100 text-xs">A menos de 5 minutos</p>
+                  </div>
+                </div>
+                {/* Info */}
+                <div className="mx-2 mt-2 bg-gray-700 rounded-xl p-2.5 flex justify-between items-center">
+                  <div className="text-center">
+                    <p className="text-white font-bold text-sm">4</p>
+                    <p className="text-gray-400 text-xs">min</p>
+                  </div>
+                  <div className="w-px h-6 bg-gray-600" />
+                  <div className="text-center">
+                    <p className="text-white font-bold text-sm">850m</p>
+                    <p className="text-gray-400 text-xs">distancia</p>
+                  </div>
+                  <div className="w-px h-6 bg-gray-600" />
+                  <div className="text-center">
+                    <p className="text-white font-bold text-sm">38</p>
+                    <p className="text-gray-400 text-xs">km/h</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <h1 className="text-5xl md:text-6xl font-black text-gray-900 leading-tight mb-6">
-          Tus trabajadores saben<br />
-          <span className="text-teal-600">exactamente cuándo llega</span><br />
-          su camión
-        </h1>
-        <p className="text-xl text-gray-500 max-w-2xl mx-auto mb-10">
-          ClickGo conecta a conductores y pasajeros en tiempo real. Sin esperas inciertas,
-          sin llamadas, sin estrés. Tu flota siempre visible en el mapa.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <a
-            href="#contacto"
-            className="bg-teal-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-teal-700 transition-colors shadow-lg shadow-teal-200"
-          >
-            Ver demo en vivo →
-          </a>
-          <a
-            href="/trabajador/mapa"
-            className="bg-white text-teal-600 border-2 border-teal-200 px-8 py-4 rounded-2xl font-bold text-lg hover:border-teal-400 transition-colors"
-          >
-            Probar ahora
-          </a>
-        </div>
-        <p className="text-gray-400 text-sm mt-4">Sin tarjeta de crédito · Configuración en 24 hrs</p>
       </section>
 
       {/* ── MÉTRICAS ─────────────────────────────────────────────────────── */}
@@ -191,7 +264,7 @@ export default function Home() {
       {/* ── PRECIO ───────────────────────────────────────────────────────── */}
       <section id="precio" className="max-w-4xl mx-auto px-6 py-24 text-center">
         <h2 className="text-4xl font-black text-gray-900 mb-4">Precio simple y justo</h2>
-        <p className="text-gray-500 text-lg mb-12">Sin sorpresas. Sin contratos de un año.</p>
+        <p className="text-gray-500 text-lg mb-12">Sin sorpresas. Cancela cuando quieras.</p>
         <div className="max-w-sm mx-auto bg-white border-2 border-teal-200 rounded-3xl p-8 shadow-xl shadow-teal-50">
           <p className="text-gray-500 text-sm font-medium mb-2">Por unidad / por mes</p>
           <div className="flex items-end justify-center gap-1 mb-2">
@@ -220,7 +293,7 @@ export default function Home() {
           >
             Empezar ahora
           </a>
-          <p className="text-gray-400 text-xs mt-3">Primer mes gratis para nuevos clientes</p>
+          <p className="text-gray-400 text-xs mt-3">15 días de prueba gratis para nuevos clientes</p>
         </div>
       </section>
 
