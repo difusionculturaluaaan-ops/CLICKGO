@@ -121,8 +121,8 @@ export function MapaTiempoReal({
         ref={mapRef}
         style={{
           width: '100%',
-          height: '55vh',
-          overflow: 'hidden',
+          height: '100%',
+          minHeight: '200px',
           backgroundColor: '#1a1a2e',
         }}
       />
