@@ -20,10 +20,14 @@ export default function SimuladorPage() {
   const { autenticado, cargando } = useAuth()
   const router = useRouter()
   const [ruta, setRuta] = useState<Ruta | null>(null)
-  const [ubicacionActual, setUbicacionActual] = useState<{ lat: number; lng: number; speed: number; heading: number; accuracy: number; timestamp: number; active: boolean } | null>(null)
 
   const paradas = ruta?.paradas?.slice().sort((a, b) => a.orden - b.orden) ?? []
   const { progreso, iniciar, detener, pausar, reanudar } = useSimuladorRuta(RUTA_DEMO, paradas, ruta?.nombre ?? '')
+
+  // ubicacionActual viene directo del hook (waypoints reales de OSRM)
+  const ubicacionActual = progreso.ubicacionActual
+    ? { ...progreso.ubicacionActual, speed: 35, heading: 180, accuracy: 8, timestamp: Date.now(), active: true }
+    : null
 
   useEffect(() => {
     if (!cargando && !autenticado) router.replace('/admin')
@@ -32,20 +36,6 @@ export default function SimuladorPage() {
   useEffect(() => {
     obtenerRuta(RUTA_DEMO).then(setRuta)
   }, [])
-
-  useEffect(() => {
-    if (progreso.estado === 'corriendo' && paradas.length > 1) {
-      const origen = paradas[progreso.segmentoActual]
-      const destino = paradas[progreso.segmentoActual + 1]
-      if (!origen || !destino) return
-      const t = progreso.porcentajeSegmento / 100
-      const lat = origen.lat + (destino.lat - origen.lat) * t
-      const lng = origen.lng + (destino.lng - origen.lng) * t
-      setUbicacionActual({ lat, lng, speed: 35, heading: 180, accuracy: 8, timestamp: Date.now(), active: true })
-    } else if (progreso.estado === 'detenido' || progreso.estado === 'completado') {
-      setUbicacionActual(null)
-    }
-  }, [progreso, paradas])
 
   if (cargando || !autenticado) {
     return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin" /></div>
@@ -85,8 +75,11 @@ export default function SimuladorPage() {
 
         {/* Estado + progreso en una sola fila */}
         <div className="px-3 py-2 border-b border-gray-800">
-          {progreso.estado === 'detenido' && (
+          {(progreso.estado === 'detenido') && (
             <p className="text-gray-400 text-xs text-center">{paradas.length} paradas · {ruta?.turno ?? ''} · Listo para iniciar</p>
+          )}
+          {progreso.estado === 'cargando' && (
+            <p className="text-teal-400 text-xs text-center animate-pulse">Calculando ruta por calles reales...</p>
           )}
           {progreso.estado === 'completado' && (
             <p className="text-teal-400 text-xs text-center font-medium">🏁 Ruta completada · {progreso.actualizaciones} puntos GPS</p>
@@ -144,6 +137,11 @@ export default function SimuladorPage() {
             >
               ▶ Iniciar simulación
             </button>
+          ) : progreso.estado === 'cargando' ? (
+            <div className="flex-1 py-2.5 bg-gray-700 rounded-xl flex items-center justify-center gap-2">
+              <span className="w-4 h-4 border-2 border-teal-400 border-t-transparent rounded-full animate-spin" />
+              <span className="text-teal-400 text-sm">Cargando ruta por calles...</span>
+            </div>
           ) : progreso.estado === 'corriendo' ? (
             <>
               <button onClick={pausar} className="flex-1 py-2.5 bg-yellow-600 hover:bg-yellow-500 text-white font-semibold rounded-xl text-sm transition-colors">
