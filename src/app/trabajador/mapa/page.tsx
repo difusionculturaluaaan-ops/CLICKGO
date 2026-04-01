@@ -6,17 +6,14 @@ import nextDynamic from 'next/dynamic'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useGPSReceiver } from '@/features/tracking/hooks/useGPSReceiver'
 import { useFCMToken } from '@/shared/hooks/useFCMToken'
+import { obtenerRuta } from '@/shared/lib/firebase/database'
 import { cerrarSesion } from '@/shared/lib/firebase/auth'
+import type { Parada, Ruta } from '@/shared/types'
 
-// Leaflet requiere client-side — dynamic import sin SSR
 const MapaTiempoReal = nextDynamic(
   () => import('@/features/tracking/components/MapaTiempoReal').then((m) => m.MapaTiempoReal),
   { ssr: false, loading: () => <div className="w-full h-full bg-gray-800 rounded-xl animate-pulse" /> }
 )
-
-// Demo: parada fija en Saltillo (Plaza Fundadores)
-const RUTA_DEMO = 'ruta-demo-001'
-const PARADA_DEMO = { lat: 25.4232, lng: -100.9963, nombre: 'Plaza Fundadores' }
 
 const ESTADO_CONFIG = {
   sin_senal: {
@@ -48,18 +45,42 @@ const ESTADO_CONFIG = {
 export default function TrabajadorMapaPage() {
   const { autenticado, usuario, cargando } = useAuth()
   const router = useRouter()
+  const [ruta, setRuta] = useState<Ruta | null>(null)
+  const [parada, setParada] = useState<Parada | null>(null)
+  const [cargandoRuta, setCargandoRuta] = useState(true)
+
+  // Resolver ruta y parada desde el perfil del usuario
+  useEffect(() => {
+    if (!usuario) {
+      setCargandoRuta(false)
+      return
+    }
+    if (!usuario.rutaAsignada) {
+      setCargandoRuta(false)
+      return
+    }
+    obtenerRuta(usuario.rutaAsignada).then((r) => {
+      setRuta(r)
+      if (r && usuario.paradaAsignada) {
+        const p = r.paradas?.find((p) => p.id === usuario.paradaAsignada) ?? null
+        setParada(p)
+      }
+      setCargandoRuta(false)
+    })
+  }, [usuario])
+
   const { ubicacion, eta, conectado } = useGPSReceiver(
-    RUTA_DEMO,
-    PARADA_DEMO.lat,
-    PARADA_DEMO.lng
+    ruta?.id ?? null,
+    parada?.lat ?? 0,
+    parada?.lng ?? 0
   )
+
   const { permiso, solicitarPermiso } = useFCMToken(usuario?.id ?? null)
   const [ultimaActualizacion, setUltimaActualizacion] = useState<string>('')
 
-  // En demo: no redirigir si no hay auth — permitir acceso directo
-  // useEffect(() => {
-  //   if (!cargando && !autenticado) router.replace('/trabajador')
-  // }, [autenticado, cargando, router])
+  useEffect(() => {
+    if (!cargando && !autenticado) router.replace('/trabajador')
+  }, [autenticado, cargando, router])
 
   useEffect(() => {
     if (ubicacion?.timestamp) {
@@ -73,7 +94,7 @@ export default function TrabajadorMapaPage() {
     router.replace('/trabajador')
   }
 
-  if (cargando) {
+  if (cargando || cargandoRuta) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="w-8 h-8 border-4 border-teal-400 border-t-transparent rounded-full animate-spin" />
@@ -81,8 +102,27 @@ export default function TrabajadorMapaPage() {
     )
   }
 
+  // Sin ruta asignada
+  if (!usuario?.rutaAsignada || !ruta) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center px-6 text-center">
+        <span className="text-5xl mb-4">🚌</span>
+        <h2 className="text-white font-bold text-xl mb-2">Sin ruta asignada</h2>
+        <p className="text-gray-400 text-sm mb-6">
+          Aún no tienes una ruta asignada. Contacta a tu supervisor para que te asigne tu camión y parada.
+        </p>
+        <button onClick={handleLogout} className="text-teal-400 text-sm underline">
+          Cerrar sesión
+        </button>
+      </div>
+    )
+  }
+
   const estadoActual = eta?.estado ?? 'sin_senal'
   const config = ESTADO_CONFIG[estadoActual]
+  const nombreParada = parada?.nombre ?? 'Parada asignada'
+  const paradaLat = parada?.lat ?? 0
+  const paradaLng = parada?.lng ?? 0
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col max-w-md mx-auto w-full shadow-2xl">
@@ -111,22 +151,29 @@ export default function TrabajadorMapaPage() {
         </div>
       )}
 
+      {/* Ruta activa */}
+      <div className="bg-gray-800 px-4 py-2 flex items-center gap-2 border-b border-gray-700">
+        <span className="text-xs text-gray-400">Ruta:</span>
+        <span className="text-xs text-teal-400 font-medium">{ruta.nombre}</span>
+        <span className="text-xs text-gray-600">· {ruta.turno}</span>
+      </div>
+
       {/* Mapa */}
-      <div style={{ overflow: 'hidden' }}>
+      <div style={{ height: '55vh', position: 'relative' }}>
         <MapaTiempoReal
           ubicacionCamion={ubicacion}
-          paradaLat={PARADA_DEMO.lat}
-          paradaLng={PARADA_DEMO.lng}
-          paradaNombre={PARADA_DEMO.nombre}
+          paradaLat={paradaLat}
+          paradaLng={paradaLng}
+          paradaNombre={nombreParada}
         />
         {!ubicacion && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-xl">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60">
             <p className="text-gray-300 text-sm">Esperando señal del camión...</p>
           </div>
         )}
       </div>
 
-      {/* Panel inferior — ETA y estado */}
+      {/* Panel inferior */}
       <div className="bg-gray-900 px-4 py-4 space-y-3">
         {/* Estado principal */}
         <div className={`${config.color} rounded-2xl p-4 flex items-center gap-3`}>
@@ -166,7 +213,7 @@ export default function TrabajadorMapaPage() {
           <div className="flex items-center gap-2">
             <span className="text-teal-400">📍</span>
             <div>
-              <p className="text-white text-sm font-medium">{PARADA_DEMO.nombre}</p>
+              <p className="text-white text-sm font-medium">{nombreParada}</p>
               <p className="text-gray-500 text-xs">Tu parada asignada</p>
             </div>
           </div>
