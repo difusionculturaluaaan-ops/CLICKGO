@@ -7,6 +7,8 @@ interface MapaTiempoRealProps {
   paradaLat: number
   paradaLng: number
   paradaNombre: string
+  userLat?: number
+  userLng?: number
 }
 
 export function MapaTiempoReal({
@@ -14,25 +16,27 @@ export function MapaTiempoReal({
   paradaLat,
   paradaLng,
   paradaNombre,
+  userLat,
+  userLng,
 }: MapaTiempoRealProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<unknown>(null)
   const camionMarkerRef = useRef<unknown>(null)
+  const userMarkerRef = useRef<unknown>(null)
+  const trailRef = useRef<unknown>(null)
+  const trailPointsRef = useRef<[number, number][]>([])
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return
 
-    // Esperar al siguiente frame para asegurar que el DOM tiene dimensiones reales
     const rafId = requestAnimationFrame(() => {
       import('leaflet').then((L) => {
         if (!mapRef.current || mapInstanceRef.current) return
 
-        // Limpiar si React Strict Mode montó dos veces
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const container = mapRef.current as any
         if (container._leaflet_id) container._leaflet_id = null
 
-        // Fix iconos
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         delete (L.Icon.Default.prototype as any)._getIconUrl
         L.Icon.Default.mergeOptions({
@@ -42,16 +46,19 @@ export function MapaTiempoReal({
         })
 
         const map = L.map(mapRef.current, { zoomControl: true })
-        map.setView([paradaLat, paradaLng], 14)
+        map.setView([paradaLat || 25.4232, paradaLng || -100.9963], 14)
         mapInstanceRef.current = map
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap contributors',
-          maxZoom: 19,
+        // CARTO dark tiles
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+          subdomains: 'abcd',
+          maxZoom: 20,
         }).addTo(map)
 
+        // Parada marker
         const paradaIcon = L.divIcon({
-          html: `<div style="background:#0f766e;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 0 6px rgba(0,0,0,0.5)"></div>`,
+          html: `<div style="background:#0f766e;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 0 8px rgba(15,118,110,0.8)"></div>`,
           className: '',
           iconSize: [14, 14],
           iconAnchor: [7, 7],
@@ -60,7 +67,6 @@ export function MapaTiempoReal({
           .addTo(map)
           .bindPopup(`📍 ${paradaNombre}`)
 
-        // Recalcular tamaño si el contenedor cambia
         const ro = new ResizeObserver(() => map.invalidateSize())
         ro.observe(mapRef.current!)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -77,29 +83,56 @@ export function MapaTiempoReal({
         m.remove()
         mapInstanceRef.current = null
         camionMarkerRef.current = null
+        userMarkerRef.current = null
+        trailRef.current = null
+        trailPointsRef.current = []
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Actualizar posición del camión
+  // Actualizar posición del camión + trail
   useEffect(() => {
     if (!mapInstanceRef.current || !ubicacionCamion) return
 
     import('leaflet').then((L) => {
       const map = mapInstanceRef.current as ReturnType<typeof L.map>
-      const { lat, lng } = ubicacionCamion
+      const { lat, lng, heading } = ubicacionCamion
 
+      // Trail polyline
+      trailPointsRef.current.push([lat, lng])
+      if (trailPointsRef.current.length > 200) trailPointsRef.current.shift()
+
+      if (trailRef.current) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(trailRef.current as any).setLatLngs(trailPointsRef.current)
+      } else {
+        trailRef.current = L.polyline(trailPointsRef.current, {
+          color: '#00D4AA',
+          weight: 3,
+          opacity: 0.75,
+        }).addTo(map)
+      }
+
+      // Bus marker with heading arrow
+      const rot = heading ?? 0
       const camionIcon = L.divIcon({
-        html: `<div style="background:#f59e0b;width:18px;height:18px;border-radius:50%;border:3px solid white;box-shadow:0 0 8px rgba(245,158,11,0.7)"></div>`,
+        html: `<div style="position:relative;width:22px;height:22px">
+          <div style="background:#f59e0b;width:22px;height:22px;border-radius:50%;border:3px solid white;box-shadow:0 0 10px rgba(245,158,11,0.8)"></div>
+          <div style="position:absolute;top:-8px;left:50%;margin-left:-3px;width:0;height:0;
+            border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:8px solid #f59e0b;
+            transform-origin:3px 14px;transform:rotate(${rot}deg)"></div>
+        </div>`,
         className: '',
-        iconSize: [18, 18],
-        iconAnchor: [9, 9],
+        iconSize: [22, 22],
+        iconAnchor: [11, 11],
       })
 
       if (camionMarkerRef.current) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(camionMarkerRef.current as any).setLatLng([lat, lng])
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(camionMarkerRef.current as any).setIcon(camionIcon)
       } else {
         camionMarkerRef.current = L.marker([lat, lng], { icon: camionIcon })
           .addTo(map)
@@ -112,6 +145,31 @@ export function MapaTiempoReal({
       )
     })
   }, [ubicacionCamion, paradaLat, paradaLng])
+
+  // Posición del trabajador en el mapa
+  useEffect(() => {
+    if (!mapInstanceRef.current || userLat == null || userLng == null) return
+
+    import('leaflet').then((L) => {
+      const map = mapInstanceRef.current as ReturnType<typeof L.map>
+
+      const userIcon = L.divIcon({
+        html: `<div style="background:#3b82f6;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 0 8px rgba(59,130,246,0.9)"></div>`,
+        className: '',
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      })
+
+      if (userMarkerRef.current) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(userMarkerRef.current as any).setLatLng([userLat, userLng])
+      } else {
+        userMarkerRef.current = L.marker([userLat, userLng], { icon: userIcon })
+          .addTo(map)
+          .bindPopup('📍 Tu ubicación')
+      }
+    })
+  }, [userLat, userLng])
 
   return (
     <>

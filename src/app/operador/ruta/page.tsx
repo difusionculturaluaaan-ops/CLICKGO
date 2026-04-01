@@ -1,6 +1,6 @@
 'use client'
 export const dynamic = 'force-dynamic'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useGPSTransmitter } from '@/features/tracking/hooks/useGPSTransmitter'
@@ -15,6 +15,16 @@ const ESTADO_LABEL = {
   sin_gps:  { texto: 'Sin GPS',        color: 'bg-yellow-500'},
 }
 
+interface LogEntry { hora: string; lat: number; lng: number; speed: number }
+
+function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLng = ((lng2 - lng1) * Math.PI) / 180
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
 export default function OperadorRutaPage() {
   const { autenticado, usuario, cargando } = useAuth()
   const router = useRouter()
@@ -22,7 +32,17 @@ export default function OperadorRutaPage() {
   const [ruta, setRuta] = useState<Ruta | null>(null)
   const [bateria, setBateria] = useState<number | null>(null)
 
-  // Usar ruta asignada al chofer, o demo como fallback
+  // Elapsed time
+  const inicioRutaRef = useRef<number | null>(null)
+  const [tiempoElapsado, setTiempoElapsado] = useState('')
+
+  // Distance counter
+  const prevPosRef = useRef<{ lat: number; lng: number } | null>(null)
+  const [distanciaTotal, setDistanciaTotal] = useState(0)
+
+  // Real-time GPS log (últimas 5)
+  const [logGPS, setLogGPS] = useState<LogEntry[]>([])
+
   const rutaId = usuario?.rutaAsignada ?? 'ruta-demo-001'
 
   const { gps, iniciar, detener } = useGPSTransmitter(
@@ -33,13 +53,12 @@ export default function OperadorRutaPage() {
     if (!cargando && !autenticado) router.replace('/operador')
   }, [autenticado, cargando, router])
 
-  // Cargar info de la ruta asignada
   useEffect(() => {
     if (!usuario?.rutaAsignada) return
     obtenerRuta(usuario.rutaAsignada).then(setRuta)
   }, [usuario?.rutaAsignada])
 
-  // Nivel de batería (API disponible en Chrome/Android)
+  // Batería
   useEffect(() => {
     if (!('getBattery' in navigator)) return
     ;(navigator as unknown as { getBattery: () => Promise<{ level: number; addEventListener: (e: string, cb: () => void) => void }> })
@@ -50,7 +69,45 @@ export default function OperadorRutaPage() {
       })
   }, [])
 
+  // Elapsed time timer
+  useEffect(() => {
+    if (!rutaActiva) { setTiempoElapsado(''); return }
+    const interval = setInterval(() => {
+      if (!inicioRutaRef.current) return
+      const secs = Math.floor((Date.now() - inicioRutaRef.current) / 1000)
+      const h = Math.floor(secs / 3600)
+      const m = Math.floor((secs % 3600) / 60)
+      const s = secs % 60
+      setTiempoElapsado(h > 0
+        ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+        : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`)
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [rutaActiva])
+
+  // Distance + log on each GPS update
+  useEffect(() => {
+    const ub = gps.ultimaUbicacion
+    if (!ub || !rutaActiva) return
+
+    // Distance
+    if (prevPosRef.current) {
+      const d = haversine(prevPosRef.current.lat, prevPosRef.current.lng, ub.lat, ub.lng)
+      setDistanciaTotal((prev) => prev + d)
+    }
+    prevPosRef.current = { lat: ub.lat, lng: ub.lng }
+
+    // Log
+    const hora = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    setLogGPS((prev) => [{ hora, lat: ub.lat, lng: ub.lng, speed: ub.speed }, ...prev].slice(0, 5))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gps.contadorActualizaciones])
+
   async function handleIniciar() {
+    inicioRutaRef.current = Date.now()
+    prevPosRef.current = null
+    setDistanciaTotal(0)
+    setLogGPS([])
     setRutaActiva(true)
     iniciar()
     await actualizarEstadoRuta(rutaId, 'activa')
@@ -79,6 +136,9 @@ export default function OperadorRutaPage() {
   const estadoInfo = ESTADO_LABEL[gps.estado]
   const nombreRuta = ruta?.nombre ?? (usuario?.rutaAsignada ? '...' : 'Demo — Ruta 001')
   const paradas = ruta?.paradas ?? []
+  const distanciaLabel = distanciaTotal >= 1000
+    ? `${(distanciaTotal / 1000).toFixed(2)} km`
+    : `${Math.round(distanciaTotal)} m`
 
   return (
     <div className="min-h-screen bg-teal-50 flex flex-col max-w-md mx-auto w-full">
@@ -100,23 +160,38 @@ export default function OperadorRutaPage() {
       </header>
 
       <main className="flex-1 flex flex-col px-4 py-6 gap-4">
-        {/* Estado de transmisión */}
-        <div className="bg-white rounded-2xl shadow p-5 text-center">
-          <div className="flex items-center justify-center gap-2 mb-1">
+        {/* Estado de transmisión + métricas */}
+        <div className="bg-white rounded-2xl shadow p-5">
+          <div className="flex items-center justify-center gap-2 mb-3">
             <span className={`w-3 h-3 rounded-full ${estadoInfo.color} ${gps.estado === 'activo' ? 'animate-pulse' : ''}`} />
             <span className="font-semibold text-gray-700 text-lg">{estadoInfo.texto}</span>
           </div>
+
           {gps.estado === 'activo' && gps.ultimaUbicacion && (
-            <div className="text-sm text-teal-600 mt-2 space-y-1">
-              <p>Velocidad: <strong>{gps.ultimaUbicacion.speed} km/h</strong></p>
-              <p>Actualizaciones: <strong>{gps.contadorActualizaciones}</strong></p>
-              <p className="text-xs text-gray-400">
-                {gps.ultimaUbicacion.lat.toFixed(5)}, {gps.ultimaUbicacion.lng.toFixed(5)}
-              </p>
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-teal-700">{gps.ultimaUbicacion.speed}</p>
+                <p className="text-gray-400 text-xs">km/h</p>
+              </div>
+              <div className="text-center border-x border-gray-100">
+                <p className="text-2xl font-bold text-teal-700">{tiempoElapsado || '00:00'}</p>
+                <p className="text-gray-400 text-xs">tiempo</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xl font-bold text-teal-700">{distanciaLabel}</p>
+                <p className="text-gray-400 text-xs">recorrido</p>
+              </div>
             </div>
           )}
+
+          {gps.estado === 'activo' && (
+            <p className="text-center text-xs text-gray-400">
+              {gps.contadorActualizaciones} actualizaciones GPS
+            </p>
+          )}
+
           {gps.error && (
-            <p className="text-red-500 text-sm mt-2">{gps.error}</p>
+            <p className="text-red-500 text-sm mt-2 text-center">{gps.error}</p>
           )}
         </div>
 
@@ -135,6 +210,22 @@ export default function OperadorRutaPage() {
           >
             ⏹ FINALIZAR RUTA
           </button>
+        )}
+
+        {/* Log GPS en tiempo real */}
+        {logGPS.length > 0 && (
+          <div className="bg-white rounded-2xl shadow p-4">
+            <h2 className="font-semibold text-teal-900 mb-2 text-sm">Log GPS</h2>
+            <div className="space-y-1">
+              {logGPS.map((entry, i) => (
+                <div key={i} className="flex items-center justify-between text-xs font-mono">
+                  <span className="text-gray-400">{entry.hora}</span>
+                  <span className="text-gray-600">{entry.lat.toFixed(5)}, {entry.lng.toFixed(5)}</span>
+                  <span className="text-teal-600 font-medium">{entry.speed} km/h</span>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
         {/* Info de ruta */}

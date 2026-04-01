@@ -1,6 +1,6 @@
 'use client'
 export const dynamic = 'force-dynamic'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import nextDynamic from 'next/dynamic'
 import { useAuth } from '@/features/auth/hooks/useAuth'
@@ -42,12 +42,24 @@ const ESTADO_CONFIG = {
   },
 }
 
+const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO']
+function toCompass(deg: number) {
+  return COMPASS[Math.round(deg / 45) % 8]
+}
+
 export default function TrabajadorMapaPage() {
   const { autenticado, usuario, cargando } = useAuth()
   const router = useRouter()
   const [ruta, setRuta] = useState<Ruta | null>(null)
   const [parada, setParada] = useState<Parada | null>(null)
   const [cargandoRuta, setCargandoRuta] = useState(true)
+
+  // Worker's own GPS position
+  const [workerLat, setWorkerLat] = useState<number | null>(null)
+  const [workerLng, setWorkerLng] = useState<number | null>(null)
+
+  // Signal freshness: 'live' | 'reciente' | 'viejo'
+  const [frescura, setFrescura] = useState<'live' | 'reciente' | 'viejo'>('viejo')
 
   // Resolver ruta y parada desde el perfil del usuario
   useEffect(() => {
@@ -77,6 +89,40 @@ export default function TrabajadorMapaPage() {
 
   const { permiso, solicitarPermiso } = useFCMToken(usuario?.id ?? null)
   const [ultimaActualizacion, setUltimaActualizacion] = useState<string>('')
+
+  // Worker's own GPS via geolocation API
+  useEffect(() => {
+    if (!navigator.geolocation) return
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        setWorkerLat(pos.coords.latitude)
+        setWorkerLng(pos.coords.longitude)
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 10000 }
+    )
+    return () => navigator.geolocation.clearWatch(watchId)
+  }, [])
+
+  // Signal freshness indicator (updates every second)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!ubicacion?.timestamp) { setFrescura('viejo'); return }
+      const age = (Date.now() - ubicacion.timestamp) / 1000
+      setFrescura(age < 30 ? 'live' : age < 60 ? 'reciente' : 'viejo')
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [ubicacion?.timestamp])
+
+  // Vibration on ya_viene / llegando state change
+  const prevEstadoRef = useRef<string>('')
+  useEffect(() => {
+    const estado = eta?.estado ?? 'sin_senal'
+    if (prevEstadoRef.current !== estado && (estado === 'ya_viene' || estado === 'llegando')) {
+      if ('vibrate' in navigator) navigator.vibrate([200, 100, 200])
+    }
+    prevEstadoRef.current = estado
+  }, [eta?.estado])
 
   useEffect(() => {
     if (!cargando && !autenticado) router.replace('/trabajador')
@@ -124,6 +170,9 @@ export default function TrabajadorMapaPage() {
   const paradaLat = parada?.lat ?? 0
   const paradaLng = parada?.lng ?? 0
 
+  const frescuraIcon = frescura === 'live' ? '🟢' : frescura === 'reciente' ? '🟡' : '🔴'
+  const frescuraLabel = frescura === 'live' ? 'En vivo' : frescura === 'reciente' ? 'Reciente' : 'Sin señal'
+
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col max-w-md mx-auto w-full shadow-2xl">
       {/* Header */}
@@ -132,9 +181,13 @@ export default function TrabajadorMapaPage() {
           <h1 className="font-bold text-white">ClickGo</h1>
           <p className="text-gray-400 text-xs">{usuario?.nombre || usuario?.telefono || 'Trabajador'}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className={`w-2 h-2 rounded-full ${conectado ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
-          <button onClick={handleLogout} className="text-gray-400 text-xs underline">Salir</button>
+        <div className="flex items-center gap-2">
+          <span className="text-xs">{frescuraIcon}</span>
+          <span className={`text-xs ${frescura === 'live' ? 'text-green-400' : frescura === 'reciente' ? 'text-yellow-400' : 'text-gray-500'}`}>
+            {frescuraLabel}
+          </span>
+          <div className={`w-2 h-2 rounded-full ml-1 ${conectado ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
+          <button onClick={handleLogout} className="text-gray-400 text-xs underline ml-1">Salir</button>
         </div>
       </header>
 
@@ -165,6 +218,8 @@ export default function TrabajadorMapaPage() {
           paradaLat={paradaLat}
           paradaLng={paradaLng}
           paradaNombre={nombreParada}
+          userLat={workerLat ?? undefined}
+          userLng={workerLng ?? undefined}
         />
         {!ubicacion && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/60">
@@ -204,6 +259,9 @@ export default function TrabajadorMapaPage() {
             <div className="text-center">
               <p className="text-xl font-bold text-white">{ubicacion?.speed ?? 0}</p>
               <p className="text-gray-400 text-xs">km/h</p>
+              {ubicacion?.heading != null && (
+                <p className="text-gray-500 text-xs">{toCompass(ubicacion.heading)}</p>
+              )}
             </div>
           </div>
         )}
