@@ -141,7 +141,7 @@ export default function Home() {
           </div>
           <div>
             <p className="text-4xl font-black">$500</p>
-            <p className="text-teal-200 text-sm mt-1">pesos/mes por unidad. Sin contratos largos</p>
+            <p className="text-teal-200 text-sm mt-1">pesos/mes por unidad. Cancela cuando quieras</p>
           </div>
         </div>
       </section>
