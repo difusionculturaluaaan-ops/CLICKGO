@@ -1,8 +1,18 @@
 import type { Metadata, Viewport } from 'next'
-import { Geist } from 'next/font/google'
+import { DM_Serif_Display, Plus_Jakarta_Sans } from 'next/font/google'
 import './globals.css'
 
-const geist = Geist({ variable: '--font-geist', subsets: ['latin'] })
+const dmSerif = DM_Serif_Display({
+  variable: '--font-serif',
+  subsets: ['latin'],
+  weight: '400',
+})
+
+const jakarta = Plus_Jakarta_Sans({
+  variable: '--font-sans',
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+})
 
 export const metadata: Metadata = {
   title: 'ClickGo',
@@ -19,8 +29,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={`${geist.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="es" className={`${dmSerif.variable} ${jakarta.variable} h-full antialiased`}>
+      <body className="min-h-full flex flex-col" style={{ fontFamily: 'var(--font-sans), sans-serif' }}>{children}</body>
     </html>
   )
 }

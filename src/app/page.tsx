@@ -32,7 +32,7 @@ export default function Home() {
               <span className="w-2 h-2 bg-teal-500 rounded-full animate-pulse" />
               GPS en tiempo real · Sin app · 100% web
             </div>
-            <h1 className="text-4xl md:text-5xl font-black text-gray-900 leading-tight mb-5">
+            <h1 className="text-4xl md:text-5xl text-gray-900 leading-tight mb-5" style={{ fontFamily: 'var(--font-serif)' }}>
               Tus trabajadores saben{' '}
               <span className="text-teal-600">exactamente cuándo llega</span>{' '}
               su camión
@@ -149,7 +149,7 @@ export default function Home() {
       {/* ── CÓMO FUNCIONA ────────────────────────────────────────────────── */}
       <section id="como-funciona" className="max-w-5xl mx-auto px-6 py-24">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-black text-gray-900 mb-4">Tres roles. Un sistema.</h2>
+          <h2 className="text-4xl text-gray-900 mb-4" style={{ fontFamily: 'var(--font-serif)' }}>Tres roles. Un sistema.</h2>
           <p className="text-gray-500 text-lg max-w-xl mx-auto">
             Cada persona tiene su propia interfaz optimizada para su rol.
           </p>
@@ -214,7 +214,7 @@ export default function Home() {
       <section id="clientes" className="bg-gray-50 py-24">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-black text-gray-900 mb-4">Diseñado para Saltillo</h2>
+            <h2 className="text-4xl text-gray-900 mb-4" style={{ fontFamily: 'var(--font-serif)' }}>Diseñado para Saltillo</h2>
             <p className="text-gray-500 text-lg">y cualquier organización con transporte propio</p>
           </div>
           <div className="grid md:grid-cols-2 gap-6">
@@ -263,7 +263,7 @@ export default function Home() {
 
       {/* ── PRECIO ───────────────────────────────────────────────────────── */}
       <section id="precio" className="max-w-4xl mx-auto px-6 py-24 text-center">
-        <h2 className="text-4xl font-black text-gray-900 mb-4">Precio simple y justo</h2>
+        <h2 className="text-4xl text-gray-900 mb-4" style={{ fontFamily: 'var(--font-serif)' }}>Precio simple y justo</h2>
         <p className="text-gray-500 text-lg mb-12">Sin sorpresas. Cancela cuando quieras.</p>
         <div className="max-w-sm mx-auto bg-white border-2 border-teal-200 rounded-3xl p-8 shadow-xl shadow-teal-50">
           <p className="text-gray-500 text-sm font-medium mb-2">Por unidad / por mes</p>
@@ -300,7 +300,7 @@ export default function Home() {
       {/* ── CONTACTO ─────────────────────────────────────────────────────── */}
       <section id="contacto" className="bg-teal-600 py-24">
         <div className="max-w-2xl mx-auto px-6 text-center">
-          <h2 className="text-4xl font-black text-white mb-4">¿Listo para el demo?</h2>
+          <h2 className="text-4xl text-white mb-4" style={{ fontFamily: 'var(--font-serif)' }}>¿Listo para el demo?</h2>
           <p className="text-teal-100 text-lg mb-10">
             Te mostramos ClickGo funcionando con tus rutas reales en menos de 30 minutos.
           </p>
