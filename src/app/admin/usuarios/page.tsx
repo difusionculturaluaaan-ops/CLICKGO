@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { ref, get, update, push, set } from 'firebase/database'
+import { ref, get, update, push, set, remove } from 'firebase/database'
 import { db } from '@/shared/lib/firebase/config'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { obtenerRutas } from '@/features/routes/services/rutas.service'
@@ -27,6 +27,7 @@ export default function AdminUsuariosPage() {
   const [cargandoDatos, setCargandoDatos] = useState(true)
   const [filtro, setFiltro] = useState<'todos' | 'trabajador' | 'chofer'>('todos')
   const [guardandoId, setGuardandoId] = useState<string | null>(null)
+  const [eliminandoId, setEliminandoId] = useState<string | null>(null)
   // Modal nuevo usuario
   const [mostrarModal, setMostrarModal] = useState(false)
   const [nuevoUsuario, setNuevoUsuario] = useState({ nombre: '', telefono: '+52', rol: 'trabajador' as 'trabajador' | 'chofer', rutaAsignada: '', paradaAsignada: '' })
@@ -59,6 +60,14 @@ export default function AdminUsuariosPage() {
   useEffect(() => {
     if (autenticado) cargarDatos()
   }, [autenticado, cargarDatos])
+
+  async function handleEliminarUsuario(userId: string) {
+    if (!confirm('¿Eliminar este usuario? Esta acción no se puede deshacer.')) return
+    setEliminandoId(userId)
+    await remove(ref(db, `usuarios/${userId}`))
+    setUsuarios(prev => prev.filter(u => u.id !== userId))
+    setEliminandoId(null)
+  }
 
   async function handleAsignarRuta(userId: string, rutaId: string) {
     setGuardandoId(userId)
@@ -325,17 +334,29 @@ export default function AdminUsuariosPage() {
             return (
               <div key={usuario.id} className="bg-white rounded-2xl shadow-sm p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-900">{usuario.nombre || 'Sin nombre'}</p>
                     <p className="text-sm text-gray-400">{usuario.telefono}</p>
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    usuario.rol === 'chofer' ? 'bg-blue-100 text-blue-700' :
-                    usuario.rol === 'admin' ? 'bg-purple-100 text-purple-700' :
-                    'bg-gray-100 text-gray-600'
-                  }`}>
-                    {usuario.rol}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      usuario.rol === 'chofer' ? 'bg-blue-100 text-blue-700' :
+                      usuario.rol === 'admin' ? 'bg-purple-100 text-purple-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>
+                      {usuario.rol}
+                    </span>
+                    {usuario.rol !== 'admin' && (
+                      <button
+                        onClick={() => handleEliminarUsuario(usuario.id)}
+                        disabled={eliminandoId === usuario.id}
+                        className="text-red-400 hover:text-red-600 text-sm px-2 py-1 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-40"
+                        title="Eliminar usuario"
+                      >
+                        {eliminandoId === usuario.id ? '...' : '🗑'}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {usuario.rol !== 'admin' && (

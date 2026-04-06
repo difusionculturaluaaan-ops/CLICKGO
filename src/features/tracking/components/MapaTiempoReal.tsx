@@ -2,6 +2,19 @@
 import { useEffect, useRef } from 'react'
 import type { Ubicacion } from '@/shared/types'
 
+const TILES = {
+  oscuro: {
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+    subdomains: 'abcd',
+  },
+  claro: {
+    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+    subdomains: 'abcd',
+  },
+}
+
 interface MapaTiempoRealProps {
   ubicacionCamion: Ubicacion | null
   paradaLat: number
@@ -9,6 +22,7 @@ interface MapaTiempoRealProps {
   paradaNombre: string
   userLat?: number
   userLng?: number
+  tema?: 'oscuro' | 'claro'
 }
 
 export function MapaTiempoReal({
@@ -18,6 +32,7 @@ export function MapaTiempoReal({
   paradaNombre,
   userLat,
   userLng,
+  tema = 'oscuro',
 }: MapaTiempoRealProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<unknown>(null)
@@ -25,6 +40,7 @@ export function MapaTiempoReal({
   const userMarkerRef = useRef<unknown>(null)
   const trailRef = useRef<unknown>(null)
   const trailPointsRef = useRef<[number, number][]>([])
+  const tileLayerRef = useRef<unknown>(null)
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return
@@ -49,10 +65,11 @@ export function MapaTiempoReal({
         map.setView([paradaLat || 25.4232, paradaLng || -100.9963], 14)
         mapInstanceRef.current = map
 
-        // CARTO dark tiles
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
-          subdomains: 'abcd',
+        // Tiles iniciales según tema
+        const t = TILES[tema]
+        tileLayerRef.current = L.tileLayer(t.url, {
+          attribution: t.attribution,
+          subdomains: t.subdomains,
           maxZoom: 20,
         }).addTo(map)
 
@@ -85,11 +102,28 @@ export function MapaTiempoReal({
         camionMarkerRef.current = null
         userMarkerRef.current = null
         trailRef.current = null
+        tileLayerRef.current = null
         trailPointsRef.current = []
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Cambiar tiles cuando cambia el tema
+  useEffect(() => {
+    if (!mapInstanceRef.current || !tileLayerRef.current) return
+    import('leaflet').then((L) => {
+      const map = mapInstanceRef.current as ReturnType<typeof L.map>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(tileLayerRef.current as any).remove()
+      const t = TILES[tema]
+      tileLayerRef.current = L.tileLayer(t.url, {
+        attribution: t.attribution,
+        subdomains: t.subdomains,
+        maxZoom: 20,
+      }).addTo(map)
+    })
+  }, [tema])
 
   // Actualizar posición del camión + trail
   useEffect(() => {
@@ -139,10 +173,17 @@ export function MapaTiempoReal({
           .bindPopup('🚌 Tu camión')
       }
 
-      map.fitBounds(
-        L.latLngBounds([[lat, lng], [paradaLat, paradaLng]]),
-        { padding: [40, 40] }
-      )
+      // Solo ajustar bounds si el bus está cerca (<50 km de la parada)
+      const dLat = lat - paradaLat, dLng = lng - paradaLng
+      const distKm = Math.sqrt(dLat * dLat + dLng * dLng) * 111
+      if (distKm < 50) {
+        map.fitBounds(
+          L.latLngBounds([[lat, lng], [paradaLat, paradaLng]]),
+          { padding: [40, 40] }
+        )
+      } else {
+        map.setView([paradaLat, paradaLng], 14)
+      }
     })
   }, [ubicacionCamion, paradaLat, paradaLng])
 

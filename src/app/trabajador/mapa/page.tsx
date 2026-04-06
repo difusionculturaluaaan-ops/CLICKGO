@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import nextDynamic from 'next/dynamic'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useGPSReceiver } from '@/features/tracking/hooks/useGPSReceiver'
+import { usePresenciaWorker } from '@/features/tracking/hooks/usePresenciaWorker'
 import { useFCMToken } from '@/shared/hooks/useFCMToken'
 import { obtenerRuta } from '@/shared/lib/firebase/database'
 import { cerrarSesion } from '@/shared/lib/firebase/auth'
@@ -57,6 +58,7 @@ export default function TrabajadorMapaPage() {
   // Worker's own GPS position
   const [workerLat, setWorkerLat] = useState<number | null>(null)
   const [workerLng, setWorkerLng] = useState<number | null>(null)
+  const [temaMapa, setTemaMapa] = useState<'oscuro' | 'claro'>('oscuro')
 
   // Signal freshness: 'live' | 'reciente' | 'viejo'
   const [frescura, setFrescura] = useState<'live' | 'reciente' | 'viejo'>('viejo')
@@ -87,6 +89,14 @@ export default function TrabajadorMapaPage() {
     parada?.lng ?? 0
   )
 
+  // Presencia automática — se registra al abrir la app, se borra al cerrarla
+  usePresenciaWorker(
+    usuario?.orgId ?? null,
+    usuario?.id ?? null,
+    usuario?.nombre || 'Trabajador',
+    usuario?.paradaAsignada ?? null,
+  )
+
   const { permiso, solicitarPermiso } = useFCMToken(usuario?.id ?? null)
   const [ultimaActualizacion, setUltimaActualizacion] = useState<string>('')
 
@@ -98,8 +108,10 @@ export default function TrabajadorMapaPage() {
         setWorkerLat(pos.coords.latitude)
         setWorkerLng(pos.coords.longitude)
       },
-      () => {},
-      { enableHighAccuracy: true, maximumAge: 10000 }
+      () => {
+        // GPS denegado o no disponible — se oculta el punto azul
+      },
+      { enableHighAccuracy: false, maximumAge: 15000, timeout: 10000 }
     )
     return () => navigator.geolocation.clearWatch(watchId)
   }, [])
@@ -187,6 +199,13 @@ export default function TrabajadorMapaPage() {
             {frescuraLabel}
           </span>
           <div className={`w-2 h-2 rounded-full ml-1 ${conectado ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
+          <button
+            onClick={() => setTemaMapa(t => t === 'oscuro' ? 'claro' : 'oscuro')}
+            className="text-gray-400 text-lg ml-1"
+            title="Cambiar tema del mapa"
+          >
+            {temaMapa === 'oscuro' ? '☀️' : '🌙'}
+          </button>
           <button onClick={handleLogout} className="text-gray-400 text-xs underline ml-1">Salir</button>
         </div>
       </header>
@@ -220,6 +239,7 @@ export default function TrabajadorMapaPage() {
           paradaNombre={nombreParada}
           userLat={workerLat ?? undefined}
           userLng={workerLng ?? undefined}
+          tema={temaMapa}
         />
         {!ubicacion && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/60">

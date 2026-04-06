@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useGPSTransmitter } from '@/features/tracking/hooks/useGPSTransmitter'
 import { actualizarEstadoRuta, obtenerRuta } from '@/shared/lib/firebase/database'
+import { usePresenciaEnParadas } from '@/features/tracking/hooks/usePresenciaEnParadas'
 import { cerrarSesion } from '@/shared/lib/firebase/auth'
 import type { Ruta } from '@/shared/types'
 
@@ -43,11 +44,16 @@ export default function OperadorRutaPage() {
   // Real-time GPS log (últimas 5)
   const [logGPS, setLogGPS] = useState<LogEntry[]>([])
 
-  const rutaId = usuario?.rutaAsignada ?? 'ruta-demo-001'
+  const rutaId = usuario?.rutaAsignada ?? null
+  const presencia = usePresenciaEnParadas(usuario?.orgId ?? null)
 
-  const { gps, iniciar, detener } = useGPSTransmitter(
-    rutaActiva ? rutaId : null
-  )
+  const { gps, iniciar, detener } = useGPSTransmitter(rutaId)
+
+  // Arranca GPS después de que React actualice rutaActiva
+  useEffect(() => {
+    if (rutaActiva) iniciar()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rutaActiva])
 
   useEffect(() => {
     if (!cargando && !autenticado) router.replace('/operador')
@@ -109,13 +115,12 @@ export default function OperadorRutaPage() {
     setDistanciaTotal(0)
     setLogGPS([])
     setRutaActiva(true)
-    iniciar()
-    await actualizarEstadoRuta(rutaId, 'activa')
+    await actualizarEstadoRuta(rutaId ?? 'ruta-demo-001', 'activa')
   }
 
   async function handleFinalizar() {
     await detener()
-    await actualizarEstadoRuta(rutaId, 'completada')
+    await actualizarEstadoRuta(rutaId ?? 'ruta-demo-001', 'completada')
     setRutaActiva(false)
   }
 
@@ -252,19 +257,32 @@ export default function OperadorRutaPage() {
               {paradas
                 .slice()
                 .sort((a, b) => a.orden - b.orden)
-                .map((parada, i) => (
-                  <li key={parada.id} className="flex items-center gap-3">
-                    <span className="w-6 h-6 rounded-full bg-teal-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
-                      {i + 1}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-700 truncate">{parada.nombre}</p>
-                      {parada.horaEstimada && (
-                        <p className="text-xs text-gray-400">{parada.horaEstimada}</p>
+                .map((parada, i) => {
+                  const p = presencia[parada.id]
+                  return (
+                    <li key={parada.id} className="flex items-center gap-3">
+                      <span className="w-6 h-6 rounded-full bg-teal-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                        {i + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-700 truncate">{parada.nombre}</p>
+                        {parada.horaEstimada && (
+                          <p className="text-xs text-gray-400">{parada.horaEstimada}</p>
+                        )}
+                      </div>
+                      {p && (
+                        <div className="shrink-0 text-right">
+                          <span className="bg-teal-100 text-teal-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                            {p.count} 📱
+                          </span>
+                          <p className="text-gray-400 text-xs mt-0.5 max-w-[80px] truncate">
+                            {p.nombres.join(', ')}
+                          </p>
+                        </div>
                       )}
-                    </div>
-                  </li>
-                ))}
+                    </li>
+                  )
+                })}
             </ol>
           </div>
         )}

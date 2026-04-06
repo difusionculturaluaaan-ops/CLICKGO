@@ -40,7 +40,7 @@ const INTERVALO_MS = 800   // ms entre waypoints (más fluido)
 const PAUSA_EN_PARADA_MS = 2500
 const ORG_DEMO = 'org-demo-001'
 
-export function useSimuladorRuta(rutaId: string, paradas: Parada[], nombreRuta = '') {
+export function useSimuladorRuta(rutaId: string | null, paradas: Parada[], nombreRuta = '') {
   const [progreso, setProgreso] = useState<ProgresoSim>({
     estado: 'detenido',
     segmentoActual: 0,
@@ -65,7 +65,7 @@ export function useSimuladorRuta(rutaId: string, paradas: Parada[], nombreRuta =
 
   const detener = useCallback(async () => {
     limpiar()
-    await finalizarTransmision(rutaId)
+    if (rutaId) await finalizarTransmision(rutaId)
     actualizacionesRef.current = 0
     segmentosRef.current = []
     setProgreso(p => ({
@@ -134,7 +134,7 @@ export function useSimuladorRuta(rutaId: string, paradas: Parada[], nombreRuta =
 
         actualizacionesRef.current++
         try {
-          await escribirUbicacion(rutaId, {
+          if (rutaId) await escribirUbicacion(rutaId, {
             lat: wp.lat, lng: wp.lng, speed, heading, accuracy: 8, active: true,
           })
         } catch { /* continuar si Firebase rechaza */ }
@@ -169,7 +169,7 @@ export function useSimuladorRuta(rutaId: string, paradas: Parada[], nombreRuta =
         await ejecutarSegmento(segIdx + 1)
       } else {
         // Ruta completada — grabar historial
-        await finalizarTransmision(rutaId)
+        if (rutaId) await finalizarTransmision(rutaId)
 
         const hoy = new Date().toISOString().split('T')[0]
         const registroParadas = paradas.map(p => {
@@ -189,9 +189,9 @@ export function useSimuladorRuta(rutaId: string, paradas: Parada[], nombreRuta =
 
         try {
           await guardarRegistroViaje({
-            rutaId,
+            rutaId: rutaId ?? 'sin-ruta',
             orgId: ORG_DEMO,
-            nombreRuta: nombreRuta || rutaId,
+            nombreRuta: nombreRuta || rutaId || 'sin-ruta',
             fecha: hoy,
             inicioReal: inicioRef.current,
             finReal: Date.now(),

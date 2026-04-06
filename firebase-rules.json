@@ -1,18 +1,12 @@
 {
   "rules": {
-    // ── Ubicaciones GPS ─────────────────────────────────────────────────────
-    // Lectura PÚBLICA: cualquier app puede ver dónde está el camión
-    // Escritura: solo choferes autenticados
     "ubicaciones": {
+      ".read": true,
       "$rutaId": {
-        ".read": true,
-        ".write": "auth != null && root.child('usuarios/' + auth.uid + '/rol').val() === 'chofer'"
+        ".write": "auth != null && (root.child('usuarios/' + auth.uid + '/rol').val() === 'chofer' || root.child('usuarios/' + auth.uid + '/rol').val() === 'admin')"
       }
     },
 
-    // ── Organizaciones ───────────────────────────────────────────────────────
-    // Solo usuarios autenticados pueden leer
-    // Solo admins de esa org pueden modificar
     "organizaciones": {
       "$orgId": {
         ".read": "auth != null",
@@ -20,23 +14,45 @@
       }
     },
 
-    // ── Rutas ────────────────────────────────────────────────────────────────
-    // Lectura: cualquier usuario autenticado
-    // Escritura: admin o chofer (choferes pueden actualizar estado de su ruta)
     "rutas": {
+      ".read": "auth != null",
       "$rutaId": {
-        ".read": "auth != null",
         ".write": "auth != null && (root.child('usuarios/' + auth.uid + '/rol').val() === 'admin' || root.child('usuarios/' + auth.uid + '/rol').val() === 'chofer')"
       }
     },
 
-    // ── Usuarios ─────────────────────────────────────────────────────────────
-    // Cada usuario lee y escribe solo su propio perfil
-    // Admins pueden leer y escribir cualquier perfil
     "usuarios": {
+      ".read": "auth != null && root.child('usuarios/' + auth.uid + '/rol').val() === 'admin'",
       "$userId": {
         ".read": "auth != null && (auth.uid === $userId || root.child('usuarios/' + auth.uid + '/rol').val() === 'admin')",
         ".write": "auth != null && (auth.uid === $userId || root.child('usuarios/' + auth.uid + '/rol').val() === 'admin')"
+      }
+    },
+
+    "historial": {
+      ".read": "auth != null",
+      "$orgId": {
+        ".write": "auth != null && root.child('usuarios/' + auth.uid + '/rol').val() === 'admin'"
+      }
+    },
+
+    "presencia": {
+      ".read": "auth != null",
+      "$orgId": {
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      }
+    },
+
+    "esperando": {
+      ".read": "auth != null",
+      "$orgId": {
+        "$paradaId": {
+          "$hash": {
+            ".write": "auth != null"
+          }
+        }
       }
     }
   }

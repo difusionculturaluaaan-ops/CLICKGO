@@ -1,11 +1,13 @@
 'use client'
 export const dynamic = 'force-dynamic'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useRutasActivas } from '@/features/admin/hooks/useRutasActivas'
+import { usePresenciaEnParadas } from '@/features/tracking/hooks/usePresenciaEnParadas'
 import { TarjetaRuta } from '@/features/admin/components/TarjetaRuta'
 import { cerrarSesion } from '@/shared/lib/firebase/auth'
+import { cargarDatosDemo } from '@/features/admin/lib/seed-demo'
 
 // Demo: org hardcodeada — en producción viene del perfil del admin
 const ORG_DEMO = 'org-demo-001'
@@ -33,6 +35,20 @@ export default function DashboardPage() {
   const { rutas, stats, cargando: cargandoRutas } = useRutasActivas(
     autenticado ? ORG_DEMO : null
   )
+  const presencia = usePresenciaEnParadas(autenticado ? ORG_DEMO : null)
+  const totalConectados = Object.values(presencia).reduce((sum, p) => sum + p.count, 0)
+  const [seedCargando, setSeedCargando] = useState(false)
+  const [seedListo, setSeedListo] = useState(false)
+
+  async function handleCargarDemo() {
+    setSeedCargando(true)
+    try {
+      await cargarDatosDemo()
+      setSeedListo(true)
+    } finally {
+      setSeedCargando(false)
+    }
+  }
 
   useEffect(() => {
     if (!cargando && !autenticado) router.replace('/admin')
@@ -83,6 +99,26 @@ export default function DashboardPage() {
           <StatCard valor={stats.sinSenal} label="Sin señal" color="text-red-500" />
         </div>
 
+        {/* Presencia de trabajadores */}
+        {totalConectados > 0 && (
+          <div className="bg-white rounded-2xl p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-semibold text-gray-700 text-sm">Trabajadores con la app abierta</h2>
+              <span className="bg-teal-100 text-teal-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                {totalConectados} 📱
+              </span>
+            </div>
+            <div className="space-y-2">
+              {Object.entries(presencia).map(([paradaId, p]) => (
+                <div key={paradaId} className="flex items-center justify-between text-sm">
+                  <span className="text-gray-500 truncate">{p.nombres.join(', ')}</span>
+                  <span className="shrink-0 text-teal-600 font-medium ml-2">{p.count} en parada</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Alertas */}
         {stats.sinSenal > 0 && (
           <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-center gap-3">
@@ -115,10 +151,21 @@ export default function DashboardPage() {
           ) : rutas.length === 0 ? (
             <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
               <p className="text-4xl mb-3">🚌</p>
-              <p className="text-gray-500 font-medium">No hay rutas configuradas</p>
-              <p className="text-gray-400 text-sm mt-1">
-                Las rutas aparecerán aquí cuando sean creadas
+              <p className="text-gray-700 font-semibold">Sin rutas configuradas</p>
+              <p className="text-gray-400 text-sm mt-1 mb-5">
+                Crea rutas manualmente o carga las 4 rutas de demo de Saltillo
               </p>
+              {seedListo ? (
+                <p className="text-teal-600 font-medium text-sm">✅ Rutas demo cargadas — ve al Simulador</p>
+              ) : (
+                <button
+                  onClick={handleCargarDemo}
+                  disabled={seedCargando}
+                  className="bg-teal-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-teal-700 disabled:opacity-60 transition-colors"
+                >
+                  {seedCargando ? '⏳ Cargando...' : '🗺️ Cargar rutas demo (Saltillo)'}
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
@@ -129,41 +176,18 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Accesos rápidos */}
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => router.push('/admin/rutas')}
-            className="bg-white rounded-2xl p-4 shadow-sm text-left hover:shadow-md transition-shadow"
-          >
-            <span className="text-2xl">🗺️</span>
-            <p className="font-semibold text-gray-800 mt-2">Gestionar rutas</p>
-            <p className="text-gray-400 text-xs mt-0.5">Crear y editar rutas</p>
-          </button>
-          <button
-            onClick={() => router.push('/admin/usuarios')}
-            className="bg-white rounded-2xl p-4 shadow-sm text-left hover:shadow-md transition-shadow"
-          >
-            <span className="text-2xl">👥</span>
-            <p className="font-semibold text-gray-800 mt-2">Trabajadores</p>
-            <p className="text-gray-400 text-xs mt-0.5">Asignar rutas y paradas</p>
-          </button>
-          <button
-            onClick={() => router.push('/admin/simulador')}
-            className="bg-teal-700 rounded-2xl p-4 shadow-sm text-left hover:bg-teal-600 transition-colors"
-          >
-            <span className="text-2xl">🎬</span>
-            <p className="font-semibold text-white mt-2">Simulador</p>
-            <p className="text-teal-200 text-xs mt-0.5">Demo en tiempo real</p>
-          </button>
-          <button
-            onClick={() => router.push('/admin/reportes')}
-            className="bg-white rounded-2xl p-4 shadow-sm text-left hover:shadow-md transition-shadow"
-          >
-            <span className="text-2xl">📊</span>
-            <p className="font-semibold text-gray-800 mt-2">Reportes</p>
-            <p className="text-gray-400 text-xs mt-0.5">Puntualidad por ruta</p>
-          </button>
-        </div>
+        {/* Acceso rápido al simulador */}
+        <button
+          onClick={() => router.push('/admin/simulador')}
+          className="w-full bg-teal-700 rounded-2xl p-4 shadow-sm text-left hover:bg-teal-600 transition-colors flex items-center gap-4"
+        >
+          <span className="text-3xl">🎬</span>
+          <div>
+            <p className="font-semibold text-white">Simulador de ruta</p>
+            <p className="text-teal-200 text-xs mt-0.5">Activa un camión en tiempo real para el demo</p>
+          </div>
+          <span className="ml-auto text-teal-300 text-xl">→</span>
+        </button>
       </main>
     </div>
   )
