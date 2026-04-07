@@ -196,12 +196,12 @@ export default function Home() {
             },
           ].map((rol) => (
             <div key={rol.titulo} className="p-6 flex flex-col items-center text-center">
-              <div className="w-24 h-24 rounded-full overflow-hidden mb-4 shadow-sm">
+              <div className="w-48 h-48 rounded-full overflow-hidden mb-4">
                 <Image
                   src={rol.foto}
                   alt={rol.titulo}
-                  width={96}
-                  height={96}
+                  width={192}
+                  height={192}
                   className="object-cover w-full h-full"
                 />
               </div>
