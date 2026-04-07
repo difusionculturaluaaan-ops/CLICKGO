@@ -61,12 +61,12 @@ export default function Home() {
           </div>
 
           {/* Mockup celular */}
-          <div className="flex-shrink-0 w-56 md:w-64">
+          <div className="shrink-0 w-56 md:w-64">
             <div className="relative bg-gray-900 rounded-[2.5rem] p-3 shadow-2xl ring-4 ring-gray-800">
               {/* Notch */}
               <div className="absolute top-4 left-1/2 -translate-x-1/2 w-16 h-4 bg-gray-800 rounded-full z-10" />
               {/* Pantalla */}
-              <div className="bg-gray-800 rounded-[2rem] overflow-hidden" style={{ height: '480px' }}>
+              <div className="bg-gray-800 rounded-4xl overflow-hidden" style={{ height: '480px' }}>
                 {/* Header app */}
                 <div className="bg-gray-900 px-3 pt-8 pb-2 flex items-center justify-between">
                   <div>
@@ -196,13 +196,15 @@ export default function Home() {
             },
           ].map((rol) => (
             <div key={rol.titulo} className="p-6 flex flex-col items-center text-center">
-              <Image
-                src={rol.foto}
-                alt={rol.titulo}
-                width={96}
-                height={96}
-                className="mb-4 drop-shadow-sm"
-              />
+              <div className="w-24 h-24 rounded-full overflow-hidden mb-4 shadow-sm">
+                <Image
+                  src={rol.foto}
+                  alt={rol.titulo}
+                  width={96}
+                  height={96}
+                  className="object-cover w-full h-full"
+                />
+              </div>
               <h3 className="font-bold text-gray-900 text-lg">{rol.titulo}</h3>
               <p className="text-gray-400 text-xs mb-4">{rol.subtitulo}</p>
               <ol className="space-y-2 text-left w-full">
