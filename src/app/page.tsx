@@ -1,3 +1,5 @@
+import Image from 'next/image'
+
 export default function Home() {
   return (
     <main className="min-h-screen bg-white text-gray-900 font-sans">
@@ -157,10 +159,11 @@ export default function Home() {
         <div className="grid md:grid-cols-3 gap-8">
           {[
             {
-              icono: '🚌',
+              foto: '/OPERADOR CIRC.png',
               titulo: 'El Conductor',
+              subtitulo: 'Operador de ruta',
               color: 'bg-blue-50 border-blue-100',
-              iconoBg: 'bg-blue-100',
+              numColor: 'bg-blue-100 text-blue-500',
               pasos: [
                 'Abre la app en su celular',
                 'Toca "Iniciar Ruta"',
@@ -168,10 +171,11 @@ export default function Home() {
               ],
             },
             {
-              icono: '👷',
+              foto: '/TRABAJADORES CIRC.png',
               titulo: 'El Trabajador',
+              subtitulo: 'Personal de planta',
               color: 'bg-teal-50 border-teal-100',
-              iconoBg: 'bg-teal-100',
+              numColor: 'bg-teal-100 text-teal-600',
               pasos: [
                 'Abre ClickGo en su celular',
                 'Ve el mapa con el camión en tiempo real',
@@ -179,10 +183,11 @@ export default function Home() {
               ],
             },
             {
-              icono: '📊',
+              foto: '/ADMIN CIRC.png',
               titulo: 'El Administrador',
+              subtitulo: 'Gestión de flota',
               color: 'bg-purple-50 border-purple-100',
-              iconoBg: 'bg-purple-100',
+              numColor: 'bg-purple-100 text-purple-500',
               pasos: [
                 'Monitorea todas las rutas en el dashboard',
                 'Ve reportes de puntualidad por día',
@@ -190,15 +195,20 @@ export default function Home() {
               ],
             },
           ].map((rol) => (
-            <div key={rol.titulo} className={`rounded-2xl border p-6 ${rol.color}`}>
-              <div className={`w-12 h-12 ${rol.iconoBg} rounded-xl flex items-center justify-center text-2xl mb-4`}>
-                {rol.icono}
-              </div>
-              <h3 className="font-bold text-gray-900 text-lg mb-3">{rol.titulo}</h3>
-              <ol className="space-y-2">
+            <div key={rol.titulo} className={`rounded-2xl border p-6 ${rol.color} flex flex-col items-center text-center`}>
+              <Image
+                src={rol.foto}
+                alt={rol.titulo}
+                width={96}
+                height={96}
+                className="mb-4 drop-shadow-sm"
+              />
+              <h3 className="font-bold text-gray-900 text-lg">{rol.titulo}</h3>
+              <p className="text-gray-400 text-xs mb-4">{rol.subtitulo}</p>
+              <ol className="space-y-2 text-left w-full">
                 {rol.pasos.map((paso, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
-                    <span className="w-5 h-5 bg-white rounded-full flex items-center justify-center text-xs font-bold text-gray-400 shrink-0 mt-0.5">
+                    <span className={`w-5 h-5 ${rol.numColor} rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5`}>
                       {i + 1}
                     </span>
                     {paso}
