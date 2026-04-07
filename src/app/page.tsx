@@ -195,7 +195,7 @@ export default function Home() {
               ],
             },
           ].map((rol) => (
-            <div key={rol.titulo} className={`rounded-2xl border p-6 ${rol.color} flex flex-col items-center text-center`}>
+            <div key={rol.titulo} className="p-6 flex flex-col items-center text-center">
               <Image
                 src={rol.foto}
                 alt={rol.titulo}
