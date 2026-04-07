@@ -195,7 +195,7 @@ export default function Home() {
               ],
             },
           ].map((rol) => (
-            <div key={rol.titulo} className="p-6 flex flex-col items-center text-center">
+            <div key={rol.titulo} className="flex flex-col items-center text-center">
               <div className="w-48 h-48 rounded-full overflow-hidden mb-4">
                 <Image
                   src={rol.foto}
@@ -207,16 +207,18 @@ export default function Home() {
               </div>
               <h3 className="font-bold text-gray-900 text-lg">{rol.titulo}</h3>
               <p className="text-gray-400 text-xs mb-4">{rol.subtitulo}</p>
-              <ol className="space-y-2 text-left w-full">
-                {rol.pasos.map((paso, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
-                    <span className={`w-5 h-5 ${rol.numColor} rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5`}>
-                      {i + 1}
-                    </span>
-                    {paso}
-                  </li>
-                ))}
-              </ol>
+              <div className={`w-full rounded-2xl border ${rol.color} p-4`}>
+                <ol className="space-y-2 text-left w-full">
+                  {rol.pasos.map((paso, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
+                      <span className={`w-5 h-5 ${rol.numColor} rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5`}>
+                        {i + 1}
+                      </span>
+                      {paso}
+                    </li>
+                  ))}
+                </ol>
+              </div>
             </div>
           ))}
         </div>
