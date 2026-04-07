@@ -214,7 +214,6 @@ export function MapaTiempoReal({
 
   return (
     <>
-      {/* eslint-disable-next-line @next/next/no-css-tags */}
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
       <div
         ref={mapRef}

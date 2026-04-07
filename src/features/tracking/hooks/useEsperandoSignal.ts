@@ -46,8 +46,11 @@ export function useEsperandoSignal({ orgId, paradaId, uid, nombre, busLlegando }
 
   // Auto-cancelar cuando el bus llega
   useEffect(() => {
-    if (busLlegando && esperando) cancelar()
-  }, [busLlegando, esperando, cancelar])
+    if (!busLlegando || !esperando) return
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
+    const promise = paradaPath ? remove(ref(db, paradaPath)) : Promise.resolve()
+    void promise.then(() => setEsperando(false))
+  }, [busLlegando, esperando, paradaPath])
 
   // Limpiar al desmontar
   useEffect(() => () => { cancelar() }, [cancelar])

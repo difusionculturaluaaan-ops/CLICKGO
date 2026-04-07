@@ -11,10 +11,10 @@ export interface RutaConUbicacion extends Ruta {
 
 export function useRutasActivas(orgId: string | null) {
   const [rutas, setRutas] = useState<RutaConUbicacion[]>([])
-  const [cargando, setCargando] = useState(true)
+  const [cargando, setCargando] = useState(!!orgId)
 
   useEffect(() => {
-    if (!orgId) { setCargando(false); return }
+    if (!orgId) return
 
     const rutasRef = ref(db, 'rutas')
     const ubicacionesRef = ref(db, 'ubicaciones')

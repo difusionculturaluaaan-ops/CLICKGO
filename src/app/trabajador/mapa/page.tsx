@@ -1,6 +1,6 @@
 'use client'
 export const dynamic = 'force-dynamic'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import nextDynamic from 'next/dynamic'
 import { useAuth } from '@/features/auth/hooks/useAuth'
@@ -53,7 +53,8 @@ export default function TrabajadorMapaPage() {
   const router = useRouter()
   const [ruta, setRuta] = useState<Ruta | null>(null)
   const [parada, setParada] = useState<Parada | null>(null)
-  const [cargandoRuta, setCargandoRuta] = useState(true)
+  const [rutaFetched, setRutaFetched] = useState(false)
+  const cargandoRuta = !!usuario?.rutaAsignada && !rutaFetched
 
   // Worker's own GPS position
   const [workerLat, setWorkerLat] = useState<number | null>(null)
@@ -65,22 +66,18 @@ export default function TrabajadorMapaPage() {
 
   // Resolver ruta y parada desde el perfil del usuario
   useEffect(() => {
-    if (!usuario) {
-      setCargandoRuta(false)
-      return
-    }
-    if (!usuario.rutaAsignada) {
-      setCargandoRuta(false)
-      return
-    }
+    if (!usuario?.rutaAsignada) return
+    let cancelled = false
     obtenerRuta(usuario.rutaAsignada).then((r) => {
+      if (cancelled) return
       setRuta(r)
       if (r && usuario.paradaAsignada) {
         const p = r.paradas?.find((p) => p.id === usuario.paradaAsignada) ?? null
         setParada(p)
       }
-      setCargandoRuta(false)
+      setRutaFetched(true)
     })
+    return () => { cancelled = true }
   }, [usuario])
 
   const { ubicacion, eta, conectado } = useGPSReceiver(
@@ -98,7 +95,6 @@ export default function TrabajadorMapaPage() {
   )
 
   const { permiso, solicitarPermiso } = useFCMToken(usuario?.id ?? null)
-  const [ultimaActualizacion, setUltimaActualizacion] = useState<string>('')
 
   // Worker's own GPS via geolocation API
   useEffect(() => {
@@ -140,11 +136,9 @@ export default function TrabajadorMapaPage() {
     if (!cargando && !autenticado) router.replace('/trabajador')
   }, [autenticado, cargando, router])
 
-  useEffect(() => {
-    if (ubicacion?.timestamp) {
-      const fecha = new Date(ubicacion.timestamp)
-      setUltimaActualizacion(fecha.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
-    }
+  const ultimaActualizacion = useMemo(() => {
+    if (!ubicacion?.timestamp) return ''
+    return new Date(ubicacion.timestamp).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   }, [ubicacion])
 
   async function handleLogout() {

@@ -3,11 +3,9 @@ import {
   set,
   onValue,
   off,
-  serverTimestamp,
   get,
   update,
   push,
-  remove,
 } from 'firebase/database'
 import { db } from './config'
 import type { Ubicacion, Ruta, Usuario, Organization, ETAResult } from '@/shared/types'

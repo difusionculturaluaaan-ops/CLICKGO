@@ -32,7 +32,6 @@ export function useGPSReceiver(
 
     // Resetear notificaciones cuando cambia la ruta
     notificadoRef.current = { yaViene: false, llegando: false }
-    setState((prev) => ({ ...prev, conectado: true }))
 
     const unsub = escucharUbicacion(rutaId, (ubicacion) => {
       if (!ubicacion) {

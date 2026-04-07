@@ -1,16 +1,13 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { solicitarPermisoYObtenerToken } from '@/shared/lib/firebase/messaging'
 import { crearOActualizarUsuario } from '@/shared/lib/firebase/database'
 
 export function useFCMToken(userId: string | null) {
   const [token, setToken] = useState<string | null>(null)
-  const [permiso, setPermiso] = useState<NotificationPermission>('default')
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    setPermiso(Notification.permission)
-  }, [])
+  const [permiso, setPermiso] = useState<NotificationPermission>(() =>
+    typeof window !== 'undefined' ? Notification.permission : 'default'
+  )
 
   async function solicitarPermiso() {
     const t = await solicitarPermisoYObtenerToken()

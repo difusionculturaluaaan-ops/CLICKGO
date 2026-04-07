@@ -5,7 +5,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth'
 import { PhoneLoginForm } from '@/features/auth/components/PhoneLoginForm'
 
 export default function OperadorPage() {
-  const { autenticado, usuario, cargando } = useAuth()
+  const { autenticado, cargando } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
