@@ -223,11 +223,23 @@ export default function TrabajadorMapaPage() {
         </div>
       )}
 
-      {/* Ruta activa */}
-      <div className="bg-gray-800 px-4 py-2 flex items-center gap-2 border-b border-gray-700">
-        <span className="text-xs text-gray-400">Ruta:</span>
-        <span className="text-xs text-teal-400 font-medium">{ruta.nombre}</span>
-        <span className="text-xs text-gray-600">· {ruta.turno}</span>
+      {/* Ruta activa + datos de unidad */}
+      <div className="bg-gray-800 px-4 py-2 border-b border-gray-700">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-400">Ruta:</span>
+          <span className="text-xs text-teal-400 font-medium">{ruta.nombre}</span>
+          <span className="text-xs text-gray-600">· {ruta.turno}</span>
+        </div>
+        {(ruta.unidad || ruta.placas) && (
+          <div className="flex items-center gap-3 mt-0.5">
+            {ruta.unidad && (
+              <span className="text-xs text-yellow-400 font-medium">🚌 Unidad {ruta.unidad}</span>
+            )}
+            {ruta.placas && (
+              <span className="text-xs text-gray-500">{ruta.placas}</span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Mapa */}
@@ -253,9 +265,15 @@ export default function TrabajadorMapaPage() {
         {/* Estado principal */}
         <div className={`${config.color} rounded-2xl p-4 flex items-center gap-3`}>
           <span className="text-3xl">{config.icono}</span>
-          <div>
+          <div className="flex-1 min-w-0">
             <p className="text-white font-bold text-lg">{config.label}</p>
             <p className="text-white/80 text-sm">{config.texto}</p>
+            {ruta.unidad && estadoActual !== 'sin_senal' && (
+              <p className="text-white/60 text-xs mt-0.5">
+                Busca la unidad <span className="font-bold text-white">{ruta.unidad}</span>
+                {ruta.placas && <span> · {ruta.placas}</span>}
+              </p>
+            )}
           </div>
         </div>
 

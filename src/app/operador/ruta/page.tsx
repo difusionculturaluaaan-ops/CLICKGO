@@ -152,6 +152,12 @@ export default function OperadorRutaPage() {
         <div>
           <h1 className="font-bold text-lg">ClickGo — Operador</h1>
           <p className="text-teal-200 text-sm">{usuario?.nombre || usuario?.telefono || 'Chofer'}</p>
+          {(ruta?.unidad || ruta?.placas) && (
+            <p className="text-teal-300 text-xs mt-0.5 flex items-center gap-2">
+              {ruta.unidad && <span>🚌 Unidad {ruta.unidad}</span>}
+              {ruta.placas && <span>· {ruta.placas}</span>}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-3">
           {bateria !== null && (

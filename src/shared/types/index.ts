@@ -42,6 +42,8 @@ export interface Ruta {
   turno: Turno
   paradas: Parada[]
   choferAsignado?: string      // userId del chofer
+  unidad?: string              // número de unidad interno (ej: "U-12")
+  placas?: string              // placas del vehículo (ej: "ABC-123-X")
   estado: EstadoRuta
   creadoEn: number
 }

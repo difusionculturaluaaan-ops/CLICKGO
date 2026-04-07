@@ -35,7 +35,7 @@ const FINSA = { id: 'p-finsa', nombre: 'FINSA — Entrada Principal', lat: 25.45
 const RUTAS = {
   'ruta-norte-001': {
     id: 'ruta-norte-001', orgId: 'org-demo-001', nombre: 'Ruta Norte — Villas del Norte',
-    turno: 'matutino', estado: 'programada', creadoEn: Date.now(),
+    turno: 'matutino', estado: 'programada', unidad: 'U-01', placas: 'NTR-100-A', creadoEn: Date.now(),
     paradas: [
       { id:'p-n1', nombre:'Villas del Norte',         lat:25.4782, lng:-100.9941, orden:1, horaEstimada:'05:30' },
       { id:'p-n2', nombre:'Col. Los Pinos',            lat:25.4710, lng:-100.9928, orden:2, horaEstimada:'05:38' },
@@ -47,7 +47,7 @@ const RUTAS = {
   },
   'ruta-sur-001': {
     id: 'ruta-sur-001', orgId: 'org-demo-001', nombre: 'Ruta Sur — San Isidro',
-    turno: 'matutino', estado: 'programada', creadoEn: Date.now(),
+    turno: 'matutino', estado: 'programada', unidad: 'U-02', placas: 'SUR-200-B', creadoEn: Date.now(),
     paradas: [
       { id:'p-s1', nombre:'Col. San Isidro',           lat:25.3780, lng:-101.0115, orden:1, horaEstimada:'05:15' },
       { id:'p-s2', nombre:'Las Quintas',                lat:25.3910, lng:-101.0050, orden:2, horaEstimada:'05:24' },
@@ -59,7 +59,7 @@ const RUTAS = {
   },
   'ruta-este-001': {
     id: 'ruta-este-001', orgId: 'org-demo-001', nombre: 'Ruta Este — Las Flores',
-    turno: 'matutino', estado: 'programada', creadoEn: Date.now(),
+    turno: 'matutino', estado: 'programada', unidad: 'U-03', placas: 'EST-300-C', creadoEn: Date.now(),
     paradas: [
       { id:'p-e1', nombre:'Col. Las Flores',            lat:25.4248, lng:-100.9258, orden:1, horaEstimada:'05:20' },
       { id:'p-e2', nombre:'Col. Libertad',              lat:25.4270, lng:-100.9380, orden:2, horaEstimada:'05:28' },
@@ -71,7 +71,7 @@ const RUTAS = {
   },
   'ruta-oeste-001': {
     id: 'ruta-oeste-001', orgId: 'org-demo-001', nombre: 'Ruta Oeste — Las Cumbres',
-    turno: 'matutino', estado: 'programada', creadoEn: Date.now(),
+    turno: 'matutino', estado: 'programada', unidad: 'U-04', placas: 'OES-400-D', creadoEn: Date.now(),
     paradas: [
       { id:'p-o1', nombre:'Las Cumbres',                lat:25.4385, lng:-101.0582, orden:1, horaEstimada:'05:10' },
       { id:'p-o2', nombre:'Lomas Vallarta',             lat:25.4360, lng:-101.0450, orden:2, horaEstimada:'05:18' },

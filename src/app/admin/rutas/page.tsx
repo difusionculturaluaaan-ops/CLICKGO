@@ -30,7 +30,7 @@ const ESTADO_COLORS: Record<EstadoRuta, string> = {
 
 type Vista = 'lista' | 'nueva' | 'editar'
 
-const RUTA_VACIA = { nombre: '', turno: 'matutino' as Turno, paradas: [] as Parada[], estado: 'programada' as EstadoRuta }
+const RUTA_VACIA = { nombre: '', turno: 'matutino' as Turno, paradas: [] as Parada[], estado: 'programada' as EstadoRuta, unidad: '', placas: '' }
 
 export default function AdminRutasPage() {
   const { autenticado, cargando } = useAuth()
@@ -148,6 +148,12 @@ export default function AdminRutasPage() {
                       <p className="text-sm text-gray-500">
                         {TURNO_LABELS[ruta.turno]} · {ruta.paradas?.length ?? 0} paradas
                       </p>
+                      {(ruta.unidad || ruta.placas) && (
+                        <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-2">
+                          {ruta.unidad && <span>🚌 Unidad {ruta.unidad}</span>}
+                          {ruta.placas && <span>🪪 {ruta.placas}</span>}
+                        </p>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -217,6 +223,33 @@ export default function AdminRutasPage() {
                       {TURNO_LABELS[t]}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Datos de la unidad */}
+              <div className="border-t border-gray-100 pt-4">
+                <p className="text-sm font-medium text-gray-700 mb-3">Datos del vehículo</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">N° de unidad</label>
+                    <input
+                      type="text"
+                      value={rutaActual.unidad ?? ''}
+                      onChange={e => setRutaActual(p => ({ ...p, unidad: e.target.value }))}
+                      placeholder="Ej: U-12"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Placas</label>
+                    <input
+                      type="text"
+                      value={rutaActual.placas ?? ''}
+                      onChange={e => setRutaActual(p => ({ ...p, placas: e.target.value.toUpperCase() }))}
+                      placeholder="Ej: ABC-123-X"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm uppercase"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
