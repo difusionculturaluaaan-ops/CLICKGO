@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClickGo — Guía de Piloto y Agente IA</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; color: #1a1a2e; background: #f8fafc; padding: 0; }
+
+    .cover {
+      background: linear-gradient(135deg, #0f766e 0%, #134e4a 100%);
+      color: white;
+      padding: 60px 48px 48px;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+    .cover h1 { font-size: 2.4rem; font-weight: 800; margin-bottom: 8px; }
+    .cover p { font-size: 1rem; opacity: 0.8; margin-top: 8px; }
+    .cover .badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.2);
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 0.8rem;
+      margin-bottom: 16px;
+    }
+
+    .content { max-width: 860px; margin: 0 auto; padding: 40px 48px 80px; }
+
+    h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #0f766e;
+      margin-top: 48px;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #ccfbf1;
+    }
+    h3 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #134e4a;
+      margin-top: 24px;
+      margin-bottom: 10px;
+    }
+    h4 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #374151;
+      margin-top: 18px;
+      margin-bottom: 8px;
+    }
+    p { line-height: 1.7; color: #374151; margin-bottom: 10px; }
+    a { color: #0f766e; }
+
+    ol, ul { padding-left: 22px; margin-bottom: 12px; }
+    li { margin-bottom: 6px; line-height: 1.6; color: #374151; }
+
+    code {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.88rem;
+      color: #065f46;
+    }
+
+    pre {
+      background: #1e293b;
+      color: #e2e8f0;
+      border-radius: 10px;
+      padding: 20px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      line-height: 1.7;
+      overflow-x: auto;
+      margin: 16px 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 0.9rem;
+    }
+    th {
+      background: #0f766e;
+      color: white;
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+    td { padding: 9px 14px; border-bottom: 1px solid #e5e7eb; }
+    tr:nth-child(even) td { background: #f0fdf4; }
+
+    .step-box {
+      background: white;
+      border: 1px solid #d1fae5;
+      border-left: 4px solid #0f766e;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin: 14px 0;
+    }
+    .step-box strong { color: #065f46; }
+
+    .alert {
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      border-left: 4px solid #f59e0b;
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin: 14px 0;
+      font-size: 0.9rem;
+    }
+
+    .url-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin: 8px 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .url-card .rol { font-weight: 700; color: #134e4a; min-width: 160px; }
+    .url-card a { font-size: 0.9rem; }
+
+    .chat-demo {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin: 16px 0;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    .chat-demo .msg { margin: 10px 0; display: flex; gap: 10px; align-items: flex-start; }
+    .chat-demo .msg.admin { flex-direction: row-reverse; }
+    .chat-demo .bubble {
+      max-width: 70%;
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+    .chat-demo .msg.agente .bubble { background: #0f766e; color: white; }
+    .chat-demo .msg.admin .bubble { background: #334155; color: #e2e8f0; }
+    .chat-demo .label { font-size: 0.72rem; color: #64748b; margin-top: 4px; }
+    .chat-demo .msg.admin .label { text-align: right; }
+
+    .cost-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin: 16px 0;
+    }
+    .cost-card {
+      background: white;
+      border: 1px solid #d1fae5;
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+    }
+    .cost-card .amount { font-size: 1.5rem; font-weight: 800; color: #0f766e; }
+    .cost-card .label { font-size: 0.8rem; color: #6b7280; margin-top: 4px; }
+
+    .footer {
+      text-align: center;
+      color: #9ca3af;
+      font-size: 0.8rem;
+      margin-top: 60px;
+      padding-top: 20px;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    @media print {
+      body { background: white; }
+      .content { padding: 20px 32px 40px; }
+      .cover { padding: 40px 32px 32px; }
+      h2 { page-break-before: auto; }
+      .step-box, .alert, .url-card { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="badge">Documento interno · Confidencial</div>
+  <h1>ClickGo</h1>
+  <h1 style="font-weight:300; font-size:1.6rem; margin-top:4px;">Guía de Piloto y Agente IA</h1>
+  <p>Versión 1.0 &nbsp;·&nbsp; Abril 2026 &nbsp;·&nbsp; Saltillo, Coahuila</p>
+</div>
+
+<div class="content">
+
+  <!-- PARTE 1 -->
+  <h2>PARTE 1 — Preparar Firebase antes del piloto</h2>
+
+  <h3>Paso 1 — Activar plan Blaze (requerido para SMS)</h3>
+  <div class="step-box">
+    <ol>
+      <li>Abre <a href="https://console.firebase.google.com">console.firebase.google.com</a></li>
+      <li>Selecciona tu proyecto ClickGo</li>
+      <li>Engrane ⚙️ → <strong>Uso y facturación</strong> → <strong>Modificar plan</strong> → <strong>Blaze (pago por uso)</strong></li>
+      <li>Conecta tarjeta de crédito</li>
+    </ol>
+  </div>
+  <div class="alert">
+    💳 Costo estimado para 15 días con ~20 usuarios: <strong>menos de $5 USD</strong>
+  </div>
+
+  <h3>Paso 2 — Habilitar login por teléfono</h3>
+  <div class="step-box">
+    <ol>
+      <li>Firebase Console → <strong>Authentication</strong> → <strong>Sign-in method</strong></li>
+      <li>Habilitar <strong>Teléfono</strong></li>
+      <li>Guardar</li>
+    </ol>
+  </div>
+
+  <h3>Paso 3 — Aplicar reglas de seguridad</h3>
+  <div class="step-box">
+    <ol>
+      <li>Firebase Console → <strong>Realtime Database</strong> → <strong>Reglas</strong></li>
+      <li>Borrar el contenido actual</li>
+      <li>Pegar el contenido del archivo <code>database.rules.json</code> del proyecto</li>
+      <li>Clic en <strong>Publicar</strong></li>
+    </ol>
+  </div>
+
+  <!-- PARTE 2 -->
+  <h2>PARTE 2 — Dar de alta al Operador</h2>
+  <p><strong>URL del sistema admin:</strong> <a href="https://clickgo.vercel.app/admin">clickgo.vercel.app/admin</a></p>
+
+  <div class="step-box">
+    <ol>
+      <li>Login como administrador</li>
+      <li>Ir a <strong>Usuarios</strong> → <strong>+ Agregar</strong></li>
+      <li>Seleccionar rol <strong>🚌 Operador</strong></li>
+      <li>Llenar: Nombre completo, Teléfono (<code>+521234567890</code>), No. de unidad, Ruta asignada</li>
+      <li>Clic en <strong>Crear</strong></li>
+    </ol>
+  </div>
+
+  <h3>El operador accede desde su celular</h3>
+  <div class="url-card">
+    <span class="rol">🚌 Operador</span>
+    <a href="https://clickgo.vercel.app/operador">clickgo.vercel.app/operador</a>
+  </div>
+  <ul>
+    <li>Ingresa su número de teléfono</li>
+    <li>Recibe SMS con código de 6 dígitos</li>
+    <li>Entra y ve su ruta activa con GPS habilitado</li>
+  </ul>
+
+  <!-- PARTE 3 -->
+  <h2>PARTE 3 — Dar de alta al Trabajador</h2>
+
+  <div class="step-box">
+    <ol>
+      <li>Ir a <strong>Usuarios</strong> → <strong>+ Agregar</strong></li>
+      <li>Seleccionar rol <strong>👷 Trabajador</strong></li>
+      <li>Llenar: Nombre completo, Teléfono, Ruta asignada, Parada asignada (la más cercana a su casa)</li>
+      <li>Clic en <strong>Crear</strong></li>
+    </ol>
+  </div>
+
+  <h3>El trabajador accede desde su celular</h3>
+  <div class="url-card">
+    <span class="rol">👷 Trabajador</span>
+    <a href="https://clickgo.vercel.app/trabajador">clickgo.vercel.app/trabajador</a>
+  </div>
+  <ul>
+    <li>Ingresa su número de teléfono</li>
+    <li>Recibe SMS con código</li>
+    <li>Ve el mapa con su camión en tiempo real</li>
+    <li>Puede seleccionar rutas alternas cercanas a su ubicación</li>
+  </ul>
+
+  <!-- PARTE 4 -->
+  <h2>PARTE 4 — Flujo de prueba completo</h2>
+  <pre>Admin crea ruta → Admin asigna operador → Admin crea trabajador con parada
+       ↓
+Operador abre /operador → Se autentica → Activa GPS → Inicia ruta
+       ↓
+Trabajador abre /trabajador → Se autentica → Ve camión en el mapa
+       ↓
+Admin ve dashboard con rutas activas y trabajadores conectados</pre>
+
+  <!-- PARTE 5 -->
+  <h2>PARTE 5 — URLs del sistema</h2>
+  <div class="url-card"><span class="rol">🔐 Administrador</span><a href="https://clickgo.vercel.app/admin">clickgo.vercel.app/admin</a></div>
+  <div class="url-card"><span class="rol">📊 Dashboard</span><a href="https://clickgo.vercel.app/admin/dashboard">clickgo.vercel.app/admin/dashboard</a></div>
+  <div class="url-card"><span class="rol">🗺️ Rutas</span><a href="https://clickgo.vercel.app/admin/rutas">clickgo.vercel.app/admin/rutas</a></div>
+  <div class="url-card"><span class="rol">👥 Usuarios</span><a href="https://clickgo.vercel.app/admin/usuarios">clickgo.vercel.app/admin/usuarios</a></div>
+  <div class="url-card"><span class="rol">🚌 Operador</span><a href="https://clickgo.vercel.app/operador">clickgo.vercel.app/operador</a></div>
+  <div class="url-card"><span class="rol">👷 Trabajador</span><a href="https://clickgo.vercel.app/trabajador">clickgo.vercel.app/trabajador</a></div>
+
+  <!-- PARTE 6 -->
+  <h2>PARTE 6 — Responsabilidades durante el piloto</h2>
+  <table>
+    <tr><th>Tarea</th><th>Quién</th></tr>
+    <tr><td>Activar Blaze en Firebase</td><td>Administrador</td></tr>
+    <tr><td>Habilitar login por teléfono</td><td>Administrador</td></tr>
+    <tr><td>Pegar reglas de seguridad</td><td>Administrador</td></tr>
+    <tr><td>Crear rutas reales en el sistema</td><td>Administrador</td></tr>
+    <tr><td>Crear usuarios reales</td><td>Administrador</td></tr>
+    <tr><td>Depurar errores que surjan</td><td>Claude Code</td></tr>
+    <tr><td>Ajustar UI según feedback del piloto</td><td>Claude Code</td></tr>
+    <tr><td>Implementar mejoras durante el piloto</td><td>Claude Code</td></tr>
+    <tr><td>Implementar Agente IA</td><td>Claude Code</td></tr>
+  </table>
+
+  <!-- PARTE 7 -->
+  <h2>PARTE 7 — Agente IA para el Administrador</h2>
+
+  <h3>Consultas en lenguaje natural sobre datos en vivo</h3>
+  <table>
+    <tr><th>Pregunta del admin</th><th>Respuesta del agente</th></tr>
+    <tr><td>"¿Qué camiones están activos ahorita?"</td><td>Lista rutas transmitiendo GPS en este momento</td></tr>
+    <tr><td>"¿Cuántos trabajadores esperan en Ruta Norte?"</td><td>Cuenta presencia en paradas</td></tr>
+    <tr><td>"¿El camión U-03 se está moviendo?"</td><td>Revisa última ubicación y velocidad</td></tr>
+    <tr><td>"¿Qué ruta tiene más retraso hoy?"</td><td>Compara ETA estimado vs hora actual</td></tr>
+    <tr><td>"¿Cuántos trabajadores entraron hoy?"</td><td>Consulta historial del día</td></tr>
+  </table>
+
+  <h3>Alertas proactivas — el agente avisa sin que preguntes</h3>
+  <ul>
+    <li>"El camión U-02 lleva 8 minutos sin señal GPS"</li>
+    <li>"3 trabajadores llevan más de 20 min esperando en parada Blvd. Colosio"</li>
+    <li>"La Ruta Sur lleva 15 min de retraso respecto al horario programado"</li>
+    <li>"El operador Carlos Mendoza no ha iniciado ruta y ya son las 5:45 am"</li>
+  </ul>
+
+  <h3>Gestión por texto — sin navegar entre pantallas</h3>
+  <ul>
+    <li>"Crea un usuario trabajador llamado Juan Pérez, teléfono +528441234567, Ruta Norte, parada Villas del Norte"</li>
+    <li>"Cambia a María López a la Ruta Este"</li>
+    <li>"Desactiva la Ruta Oeste por hoy"</li>
+    <li>"Asigna el operador Pedro Ramírez a la Ruta Sur"</li>
+  </ul>
+
+  <h3>Reportes y análisis</h3>
+  <ul>
+    <li>"Dame un resumen de la semana" → Genera reporte con rutas activas, puntualidad, trabajadores atendidos</li>
+    <li>"¿Qué día tuvimos más problemas este mes?" → Analiza historial de señal perdida</li>
+    <li>"¿Cuál es la ruta más puntual?" → Compara tiempos estimados vs reales</li>
+    <li>"Exporta el reporte de hoy para mandarlo por WhatsApp"</li>
+  </ul>
+
+  <h3>Así se vería el chat en el dashboard</h3>
+  <div class="chat-demo">
+    <div class="msg admin">
+      <div>
+        <div class="bubble">¿Qué pasa con la Ruta Norte?</div>
+        <div class="label">Admin</div>
+      </div>
+    </div>
+    <div class="msg agente">
+      <div>
+        <div class="bubble">La Ruta Norte está activa. El camión U-01 transmitió hace 2 min a 45 km/h. Hay 4 trabajadores esperando en parada Villas del Norte. ETA estimado: 6 minutos. ✅</div>
+        <div class="label">Agente ClickGo</div>
+      </div>
+    </div>
+    <div class="msg admin">
+      <div>
+        <div class="bubble">Crea un trabajador: Ana García, +528441112233, Ruta Norte, parada Los Pinos</div>
+        <div class="label">Admin</div>
+      </div>
+    </div>
+    <div class="msg agente">
+      <div>
+        <div class="bubble">✅ Usuario creado: Ana García · +528441112233 · Ruta Norte — Parada 2. Los Pinos. ¿Deseas notificarle su URL de acceso?</div>
+        <div class="label">Agente ClickGo</div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Costo de operación del agente</h3>
+  <div class="cost-grid">
+    <div class="cost-card">
+      <div class="amount">$0.10</div>
+      <div class="label">USD/día<br>50 consultas diarias</div>
+    </div>
+    <div class="cost-card">
+      <div class="amount">$1.50</div>
+      <div class="label">USD total<br>Piloto 15 días</div>
+    </div>
+    <div class="cost-card">
+      <div class="amount">$3–5</div>
+      <div class="label">USD/mes<br>Uso normal</div>
+    </div>
+  </div>
+
+  <h3>Lo que NO puede hacer (límites honestos)</h3>
+  <table>
+    <tr><th>Limitación</th><th>Por qué</th></tr>
+    <tr><td>No manda WhatsApp por sí solo</td><td>Requiere integración con WhatsApp Business API</td></tr>
+    <tr><td>No predice tráfico en tiempo real</td><td>Requiere Google Maps API con datos de tráfico</td></tr>
+    <tr><td>No recuerda conversaciones anteriores por defecto</td><td>Cada sesión empieza fresca (configurable)</td></tr>
+    <tr><td>No toma decisiones críticas sin confirmar</td><td>Siempre pide confirmación antes de borrar datos</td></tr>
+  </table>
+
+  <h3>Para activar el Agente IA</h3>
+  <div class="step-box">
+    <ol>
+      <li>Obtener API key en <a href="https://console.anthropic.com">console.anthropic.com</a></li>
+      <li>Compartir la key para agregarla como variable de entorno en Vercel</li>
+      <li>Claude Code implementa el widget de chat en el dashboard del admin</li>
+    </ol>
+  </div>
+
+  <div class="footer">
+    <p>Documento generado por Claude Code &nbsp;·&nbsp; ClickGo 2026 &nbsp;·&nbsp; Saltillo, Coahuila</p>
+    <p style="margin-top:4px;">Para imprimir como PDF: Ctrl+P → Guardar como PDF</p>
+  </div>
+
+</div>
+</body>
+</html>
