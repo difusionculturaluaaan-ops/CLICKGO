@@ -6,12 +6,7 @@ export default function Home() {
 
       {/* ── NAV ──────────────────────────────────────────────────────────── */}
       <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-black text-sm">CG</span>
-          </div>
-          <span className="font-bold text-gray-900 text-lg">ClickGo</span>
-        </div>
+        <Image src="/logo 05.png" alt="ClickGo" width={200} height={80} className="h-16 w-auto object-contain mix-blend-multiply" />
         <div className="hidden md:flex items-center gap-8 text-sm text-gray-500">
           <a href="#como-funciona" className="hover:text-teal-600 transition-colors">Cómo funciona</a>
           <a href="#clientes" className="hover:text-teal-600 transition-colors">Para quién</a>
@@ -34,7 +29,7 @@ export default function Home() {
               <span className="w-2 h-2 bg-teal-500 rounded-full animate-pulse" />
               GPS en tiempo real · Sin app · 100% web
             </div>
-            <h1 className="text-4xl md:text-5xl text-gray-900 leading-tight mb-5" style={{ fontFamily: 'var(--font-serif)' }}>
+            <h1 className="text-5xl md:text-7xl text-gray-900 leading-tight mb-5" style={{ fontFamily: 'var(--font-serif)' }}>
               Tus trabajadores saben{' '}
               <span className="text-teal-600">exactamente cuándo llega</span>{' '}
               su camión
@@ -370,12 +365,7 @@ export default function Home() {
       {/* ── FOOTER ───────────────────────────────────────────────────────── */}
       <footer className="bg-gray-900 text-gray-400 py-10 px-6">
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-teal-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-black text-xs">CG</span>
-            </div>
-            <span className="text-white font-bold">ClickGo</span>
-          </div>
+          <Image src="/logo 05.png" alt="ClickGo" width={200} height={80} className="h-16 w-auto object-contain mix-blend-screen" />
           <p className="text-sm">Saltillo, Coahuila · México</p>
           <div className="flex gap-6 text-sm">
             <a href="/trabajador/mapa" className="hover:text-white transition-colors">Demo trabajador</a>

@@ -3,9 +3,11 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import nextDynamic from 'next/dynamic'
+import { ref, get, update } from 'firebase/database'
+import { db } from '@/shared/lib/firebase/config'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { obtenerRutas, crearRuta, eliminarRuta, actualizarRuta } from '@/features/routes/services/rutas.service'
-import type { Ruta, Parada, Turno, EstadoRuta } from '@/shared/types'
+import type { Ruta, Parada, Turno, EstadoRuta, Usuario } from '@/shared/types'
 
 const MapaParadas = nextDynamic(() => import('@/features/routes/components/MapaParadas').then(m => m.MapaParadas), {
   ssr: false,
@@ -36,6 +38,9 @@ export default function AdminRutasPage() {
   const { autenticado, cargando } = useAuth()
   const router = useRouter()
   const [rutas, setRutas] = useState<Ruta[]>([])
+  const [choferes, setChoferes] = useState<Usuario[]>([])
+  const [choferPorRuta, setChoferPorRuta] = useState<Record<string, string>>({})
+  const [choferSeleccionado, setChoferSeleccionado] = useState<string>('')
   const [cargandoRutas, setCargandoRutas] = useState(true)
   const [vista, setVista] = useState<Vista>('lista')
   const [rutaActual, setRutaActual] = useState<Partial<Ruta>>(RUTA_VACIA)
@@ -47,8 +52,18 @@ export default function AdminRutasPage() {
 
   const cargarRutas = useCallback(async () => {
     setCargandoRutas(true)
-    const data = await obtenerRutas(ORG_DEMO)
+    const [data, snapUsuarios] = await Promise.all([
+      obtenerRutas(ORG_DEMO),
+      get(ref(db, 'usuarios')),
+    ])
     setRutas(data)
+    if (snapUsuarios.exists()) {
+      const todos = Object.values(snapUsuarios.val() as Record<string, Usuario>).filter(u => u.orgId === ORG_DEMO)
+      const mapa: Record<string, string> = {}
+      todos.filter(u => u.rol === 'chofer' && u.rutaAsignada).forEach(u => { mapa[u.rutaAsignada!] = u.nombre })
+      setChoferPorRuta(mapa)
+      setChoferes(todos.filter(u => u.rol === 'chofer'))
+    }
     setCargandoRutas(false)
   }, [])
 
@@ -62,18 +77,25 @@ export default function AdminRutasPage() {
     try {
       if (rutaActual.id) {
         await actualizarRuta(rutaActual.id, rutaActual)
+        // Desasignar chofer anterior si cambió
+        const choferAnterior = choferes.find(c => c.rutaAsignada === rutaActual.id && c.id !== choferSeleccionado)
+        if (choferAnterior) await update(ref(db, `usuarios/${choferAnterior.id}`), { rutaAsignada: null })
+        // Asignar nuevo chofer
+        if (choferSeleccionado) await update(ref(db, `usuarios/${choferSeleccionado}`), { rutaAsignada: rutaActual.id })
       } else {
-        await crearRuta(ORG_DEMO, {
+        const nuevaId = await crearRuta(ORG_DEMO, {
           nombre: rutaActual.nombre!,
           turno: rutaActual.turno ?? 'matutino',
           paradas: rutaActual.paradas ?? [],
           estado: 'programada',
           orgId: ORG_DEMO,
         })
+        if (choferSeleccionado && nuevaId) await update(ref(db, `usuarios/${choferSeleccionado}`), { rutaAsignada: nuevaId })
       }
       await cargarRutas()
       setVista('lista')
       setRutaActual(RUTA_VACIA)
+      setChoferSeleccionado('')
     } finally {
       setGuardando(false)
     }
@@ -87,6 +109,8 @@ export default function AdminRutasPage() {
 
   function handleEditar(ruta: Ruta) {
     setRutaActual(ruta)
+    const choferActual = choferes.find(c => c.rutaAsignada === ruta.id)
+    setChoferSeleccionado(choferActual?.id ?? '')
     setVista('editar')
   }
 
@@ -148,10 +172,11 @@ export default function AdminRutasPage() {
                       <p className="text-sm text-gray-500">
                         {TURNO_LABELS[ruta.turno]} · {ruta.paradas?.length ?? 0} paradas
                       </p>
-                      {(ruta.unidad || ruta.placas) && (
-                        <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-2">
+                      {(ruta.unidad || ruta.placas || choferPorRuta[ruta.id]) && (
+                        <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-2 flex-wrap">
                           {ruta.unidad && <span>🚌 Unidad {ruta.unidad}</span>}
                           {ruta.placas && <span>🪪 {ruta.placas}</span>}
+                          {choferPorRuta[ruta.id] && <span>👤 {choferPorRuta[ruta.id]}</span>}
                         </p>
                       )}
                     </div>
@@ -251,6 +276,23 @@ export default function AdminRutasPage() {
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* Operador asignado */}
+              <div className="border-t border-gray-100 pt-4">
+                <p className="text-sm font-medium text-gray-700 mb-3">Operador asignado</p>
+                <select
+                  value={choferSeleccionado}
+                  onChange={e => setChoferSeleccionado(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                >
+                  <option value="">— Sin operador —</option>
+                  {choferes.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.nombre}{c.rutaAsignada && c.rutaAsignada !== rutaActual.id ? ' (en otra ruta)' : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 

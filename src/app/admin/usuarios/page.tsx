@@ -30,7 +30,7 @@ export default function AdminUsuariosPage() {
   const [eliminandoId, setEliminandoId] = useState<string | null>(null)
   // Modal nuevo usuario
   const [mostrarModal, setMostrarModal] = useState(false)
-  const [nuevoUsuario, setNuevoUsuario] = useState({ nombre: '', telefono: '+52', rol: 'trabajador' as 'trabajador' | 'chofer', rutaAsignada: '', paradaAsignada: '' })
+  const [nuevoUsuario, setNuevoUsuario] = useState({ nombre: '', telefono: '+52', rol: 'trabajador' as 'trabajador' | 'chofer', rutaAsignada: '', paradaAsignada: '', numeroUnidad: '' })
   // Import masivo
   const [importPreview, setImportPreview] = useState<UsuarioImport[] | null>(null)
   const [importando, setImportando] = useState(false)
@@ -95,10 +95,11 @@ export default function AdminUsuariosPage() {
       rol: nuevoUsuario.rol,
       rutaAsignada: nuevoUsuario.rutaAsignada || undefined,
       paradaAsignada: nuevoUsuario.paradaAsignada || undefined,
+      numeroUnidad: nuevoUsuario.numeroUnidad || undefined,
       creadoEn: Date.now(),
     })
     setMostrarModal(false)
-    setNuevoUsuario({ nombre: '', telefono: '+52', rol: 'trabajador', rutaAsignada: '', paradaAsignada: '' })
+    setNuevoUsuario({ nombre: '', telefono: '+52', rol: 'trabajador', rutaAsignada: '', paradaAsignada: '', numeroUnidad: '' })
     await cargarDatos()
   }
 
@@ -312,7 +313,7 @@ export default function AdminUsuariosPage() {
                 filtro === f ? 'bg-teal-700 text-white' : 'bg-white text-gray-600 border border-gray-200'
               }`}
             >
-              {f === 'todos' ? 'Todos' : f === 'trabajador' ? '👷 Trabajadores' : '🚌 Choferes'}
+              {f === 'todos' ? 'Todos' : f === 'trabajador' ? '👷 Trabajadores' : '🚌 Operadores'}
             </button>
           ))}
         </div>
@@ -409,9 +410,26 @@ export default function AdminUsuariosPage() {
 
       {/* Modal nuevo usuario */}
       {mostrarModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
-          <div className="bg-white w-full max-w-md rounded-t-2xl p-6 space-y-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <h2 className="font-bold text-gray-900 text-lg">Nuevo usuario</h2>
+
+            {/* Rol */}
+            <div className="grid grid-cols-2 gap-2">
+              {(['trabajador', 'chofer'] as const).map(rol => (
+                <button
+                  key={rol}
+                  onClick={() => setNuevoUsuario(p => ({ ...p, rol, rutaAsignada: '', paradaAsignada: '', numeroUnidad: '' }))}
+                  className={`py-2 rounded-xl text-sm font-medium border ${
+                    nuevoUsuario.rol === rol ? 'bg-teal-700 text-white border-teal-700' : 'bg-white text-gray-600 border-gray-200'
+                  }`}
+                >
+                  {rol === 'trabajador' ? '👷 Trabajador' : '🚌 Operador'}
+                </button>
+              ))}
+            </div>
+
+            {/* Datos comunes */}
             <input
               placeholder="Nombre completo"
               value={nuevoUsuario.nombre}
@@ -424,19 +442,65 @@ export default function AdminUsuariosPage() {
               onChange={e => setNuevoUsuario(p => ({ ...p, telefono: e.target.value }))}
               className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
-            <div className="grid grid-cols-2 gap-2">
-              {(['trabajador', 'chofer'] as const).map(rol => (
-                <button
-                  key={rol}
-                  onClick={() => setNuevoUsuario(p => ({ ...p, rol }))}
-                  className={`py-2 rounded-xl text-sm font-medium border ${
-                    nuevoUsuario.rol === rol ? 'bg-teal-700 text-white border-teal-700' : 'bg-white text-gray-600 border-gray-200'
-                  }`}
-                >
-                  {rol === 'trabajador' ? '👷 Trabajador' : '🚌 Chofer'}
-                </button>
-              ))}
-            </div>
+
+            {/* Campos específicos de Operador */}
+            {nuevoUsuario.rol === 'chofer' && (
+              <>
+                <input
+                  placeholder="No. de unidad (ej. U-12)"
+                  value={nuevoUsuario.numeroUnidad}
+                  onChange={e => setNuevoUsuario(p => ({ ...p, numeroUnidad: e.target.value }))}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+                <div>
+                  <label className="text-xs text-gray-500 font-medium">Ruta asignada</label>
+                  <select
+                    value={nuevoUsuario.rutaAsignada}
+                    onChange={e => setNuevoUsuario(p => ({ ...p, rutaAsignada: e.target.value }))}
+                    className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  >
+                    <option value="">— Sin asignar —</option>
+                    {rutas.map(r => (
+                      <option key={r.id} value={r.id}>{r.nombre} ({r.turno})</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+
+            {/* Campos específicos de Trabajador */}
+            {nuevoUsuario.rol === 'trabajador' && (
+              <>
+                <div>
+                  <label className="text-xs text-gray-500 font-medium">Ruta asignada</label>
+                  <select
+                    value={nuevoUsuario.rutaAsignada}
+                    onChange={e => setNuevoUsuario(p => ({ ...p, rutaAsignada: e.target.value, paradaAsignada: '' }))}
+                    className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  >
+                    <option value="">— Sin asignar —</option>
+                    {rutas.map(r => (
+                      <option key={r.id} value={r.id}>{r.nombre} ({r.turno})</option>
+                    ))}
+                  </select>
+                </div>
+                {nuevoUsuario.rutaAsignada && (
+                  <div>
+                    <label className="text-xs text-gray-500 font-medium">Parada asignada</label>
+                    <select
+                      value={nuevoUsuario.paradaAsignada}
+                      onChange={e => setNuevoUsuario(p => ({ ...p, paradaAsignada: e.target.value }))}
+                      className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    >
+                      <option value="">— Sin parada —</option>
+                      {getParadasDeRuta(nuevoUsuario.rutaAsignada).map(p => (
+                        <option key={p.id} value={p.id}>{p.orden}. {p.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </>
+            )}
             <div className="flex gap-3 pt-2">
               <button onClick={() => setMostrarModal(false)} className="flex-1 py-3 border border-gray-200 rounded-xl text-gray-600">
                 Cancelar

@@ -72,6 +72,7 @@ export interface Usuario {
   rutaAsignada?: string        // rutaId
   paradaAsignada?: string      // paradaId
   rol: RolUsuario
+  numeroUnidad?: string        // solo para choferes/operadores
   fcmToken?: string            // para push notifications
   creadoEn: number
 }
