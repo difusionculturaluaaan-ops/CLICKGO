@@ -5,6 +5,9 @@ import { enviarCodigoSMS, confirmarCodigo, sincronizarPerfilUsuario } from '@/sh
 
 type Paso = 'telefono' | 'codigo'
 
+const PHONE_REGEX = /^\+\d{10,15}$/
+const SMS_COOLDOWN_MS = 30_000
+
 export function PhoneLoginForm() {
   const [paso, setPaso] = useState<Paso>('telefono')
   const [telefono, setTelefono] = useState('+52')
@@ -12,14 +15,36 @@ export function PhoneLoginForm() {
   const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null)
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState('')
+  const [ultimoEnvio, setUltimoEnvio] = useState(0)
+  const [cooldownSeg, setCooldownSeg] = useState(0)
+
+  // Contador de cooldown visible
+  useState(() => {
+    const interval = setInterval(() => {
+      const restante = Math.ceil((ultimoEnvio + SMS_COOLDOWN_MS - Date.now()) / 1000)
+      setCooldownSeg(restante > 0 ? restante : 0)
+    }, 1000)
+    return () => clearInterval(interval)
+  })
 
   async function handleEnviarCodigo(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+
+    if (!PHONE_REGEX.test(telefono)) {
+      setError('Formato inválido. Usa: +521234567890 (10 dígitos después de +52)')
+      return
+    }
+    if (Date.now() - ultimoEnvio < SMS_COOLDOWN_MS) {
+      setError(`Espera ${cooldownSeg} segundos antes de reenviar.`)
+      return
+    }
+
     setCargando(true)
     try {
       const result = await enviarCodigoSMS(telefono)
       setConfirmation(result)
+      setUltimoEnvio(Date.now())
       setPaso('codigo')
     } catch (err: unknown) {
       setError('No se pudo enviar el SMS. Verifica el número e intenta de nuevo.')
@@ -62,17 +87,17 @@ export function PhoneLoginForm() {
               onChange={(e) => setTelefono(e.target.value)}
               placeholder="+521234567890"
               required
-              className="w-full px-4 py-3 rounded-xl border border-teal-200 focus:outline-none focus:ring-2 focus:ring-teal-500 text-lg"
+              className="w-full px-4 py-3 rounded-xl border border-teal-200 focus:outline-none focus:ring-2 focus:ring-teal-500 text-lg text-gray-900 placeholder:text-gray-400"
             />
             <p className="text-xs text-teal-600 mt-1">Incluye el código de país: +52 para México</p>
           </div>
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <button
             type="submit"
-            disabled={cargando}
+            disabled={cargando || cooldownSeg > 0}
             className="w-full py-3 bg-teal-700 text-white rounded-xl font-medium hover:bg-teal-800 disabled:opacity-50 transition-colors"
           >
-            {cargando ? 'Enviando...' : 'Enviar código SMS'}
+            {cargando ? 'Enviando...' : cooldownSeg > 0 ? `Reenviar en ${cooldownSeg}s` : 'Enviar código SMS'}
           </button>
         </form>
       ) : (

@@ -20,7 +20,7 @@ interface UsuarioImport {
 }
 
 export default function AdminUsuariosPage() {
-  const { autenticado, cargando } = useAuth()
+  const { autenticado, usuario, cargando } = useAuth()
   const router = useRouter()
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [rutas, setRutas] = useState<Ruta[]>([])
@@ -38,8 +38,10 @@ export default function AdminUsuariosPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (!cargando && !autenticado) router.replace('/admin')
-  }, [autenticado, cargando, router])
+    if (!cargando && (!autenticado || (usuario && usuario.rol !== 'admin' && usuario.rol !== 'superadmin'))) {
+      router.replace('/admin')
+    }
+  }, [autenticado, usuario, cargando, router])
 
   const cargarDatos = useCallback(async () => {
     setCargandoDatos(true)

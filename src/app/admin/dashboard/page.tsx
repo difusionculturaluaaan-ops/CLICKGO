@@ -37,8 +37,10 @@ export default function DashboardPage() {
   const presencia = usePresenciaEnParadas(autenticado ? ORG_DEMO : null)
   const totalConectados = Object.values(presencia).reduce((sum, p) => sum + p.count, 0)
   useEffect(() => {
-    if (!cargando && !autenticado) router.replace('/admin')
-  }, [autenticado, cargando, router])
+    if (!cargando && (!autenticado || (usuario && usuario.rol !== 'admin' && usuario.rol !== 'superadmin'))) {
+      router.replace('/admin')
+    }
+  }, [autenticado, usuario, cargando, router])
 
   async function handleLogout() {
     await cerrarSesion()

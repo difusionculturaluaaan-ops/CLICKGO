@@ -36,8 +36,10 @@ export default function SimuladorPage() {
   )
 
   useEffect(() => {
-    if (!cargando && !autenticado) router.replace('/admin')
-  }, [autenticado, cargando, router])
+    if (!cargando && (!autenticado || (usuario && usuario.rol !== 'admin' && usuario.rol !== 'superadmin'))) {
+      router.replace('/admin')
+    }
+  }, [autenticado, usuario, cargando, router])
 
   // Cargar todas las rutas de la org
   useEffect(() => {

@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "WebFetch(domain:drive.google.com)",
+      "Bash(wsl --status)",
+      "Bash(wsl --list --verbose)",
+      "Bash(wsl -d Ubuntu -- bash -c \"curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash\")",
+      "Bash(wsl -d Ubuntu -- bash -c 'export NVM_DIR=\"$HOME/.nvm\" && source \"$NVM_DIR/nvm.sh\" && nvm install --lts && nvm use --lts && node --version && npm --version')",
+      "Bash(wsl -d Ubuntu -- bash -c 'source /home/image/.nvm/nvm.sh && nvm install --lts && node --version && npm --version')",
+      "Bash(wsl -d Ubuntu -- bash -c 'source /home/image/.nvm/nvm.sh && npm install -g vercel')",
+      "Bash(wsl -d Ubuntu -- bash -c 'source /home/image/.nvm/nvm.sh && cd /mnt/c/Users/image/Developer/software/clickgo && npm run dev')",
+      "Bash(taskkill /PID 2067 /F)",
+      "Bash(cmd /c \"taskkill /PID 2067 /F\")",
+      "Bash(cmd /c \"taskkill /IM node.exe /F\")",
+      "Bash(cmd /c \"rmdir /s /q \\\\\"c:\\\\Users\\\\image\\\\Developer\\\\software\\\\clickgo\\\\.next\\\\\"\")",
+      "Bash(cmd /c \"taskkill /IM node.exe /F /T\")",
+      "Bash(cmd /c \"netstat -ano | findstr :3000\")",
+      "Bash(wsl -d Ubuntu -- bash -c \"pkill -f 'next dev' && pkill -f node\")",
+      "Bash(wsl -d Ubuntu -- bash -c \"lsof -i :3000 2>/dev/null || ss -tlnp | grep 3000\")",
+      "Bash(wsl -d Ubuntu -- bash -c \"kill -9 2838\")",
+      "Bash(xargs grep:*)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}

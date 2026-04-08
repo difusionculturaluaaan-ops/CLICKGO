@@ -2,28 +2,28 @@
   "rules": {
     "rutas": {
       "$rutaId": {
-        ".read": "auth != null",
-        ".write": "auth != null && root.child('usuarios').child(auth.uid).child('rol').val() === 'admin'"
+        ".read": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === data.child('orgId').val()",
+        ".write": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === data.child('orgId').val() && (root.child('usuarios').child(auth.uid).child('rol').val() === 'admin' || root.child('usuarios').child(auth.uid).child('rol').val() === 'superadmin')"
       }
     },
     "usuarios": {
       "$userId": {
-        ".read": "auth != null && (auth.uid === $userId || root.child('usuarios').child(auth.uid).child('rol').val() === 'admin')",
-        ".write": "auth != null && (auth.uid === $userId || root.child('usuarios').child(auth.uid).child('rol').val() === 'admin')"
+        ".read": "auth != null && (auth.uid === $userId || root.child('usuarios').child(auth.uid).child('rol').val() === 'admin' || root.child('usuarios').child(auth.uid).child('rol').val() === 'superadmin')",
+        ".write": "auth != null && (auth.uid === $userId || root.child('usuarios').child(auth.uid).child('rol').val() === 'admin' || root.child('usuarios').child(auth.uid).child('rol').val() === 'superadmin')"
       }
     },
     "ubicaciones": {
       "$rutaId": {
-        ".read": "auth != null",
-        ".write": "auth != null && root.child('usuarios').child(auth.uid).child('rol').val() === 'chofer'"
+        ".read": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === root.child('rutas').child($rutaId).child('orgId').val()",
+        ".write": "auth != null && (root.child('usuarios').child(auth.uid).child('rol').val() === 'chofer' || root.child('usuarios').child(auth.uid).child('rol').val() === 'admin') && root.child('usuarios').child(auth.uid).child('orgId').val() === root.child('rutas').child($rutaId).child('orgId').val()"
       }
     },
     "presencia": {
       "$orgId": {
+        ".read": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId",
         "$rutaId": {
           "$paradaId": {
-            ".read": "auth != null",
-            ".write": "auth != null"
+            ".write": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId"
           }
         }
       }
@@ -32,6 +32,12 @@
       "$paradaId": {
         ".read": "auth != null",
         ".write": "auth != null && root.child('usuarios').child(auth.uid).child('rol').val() === 'trabajador'"
+      }
+    },
+    "historial": {
+      "$orgId": {
+        ".read": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId",
+        ".write": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId && (root.child('usuarios').child(auth.uid).child('rol').val() === 'admin' || root.child('usuarios').child(auth.uid).child('rol').val() === 'chofer')"
       }
     }
   }

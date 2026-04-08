@@ -28,15 +28,17 @@ function formatFecha(fecha: string) {
 }
 
 export default function ReportesPage() {
-  const { autenticado, cargando } = useAuth()
+  const { autenticado, usuario, cargando } = useAuth()
   const router = useRouter()
   const [viajes, setViajes] = useState<RegistroViaje[]>([])
   const [cargandoDatos, setCargandoDatos] = useState(true)
   const [viajeAbierto, setViajeAbierto] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!cargando && !autenticado) router.replace('/admin')
-  }, [autenticado, cargando, router])
+    if (!cargando && (!autenticado || (usuario && usuario.rol !== 'admin' && usuario.rol !== 'superadmin'))) {
+      router.replace('/admin')
+    }
+  }, [autenticado, usuario, cargando, router])
 
   useEffect(() => {
     if (!autenticado) return

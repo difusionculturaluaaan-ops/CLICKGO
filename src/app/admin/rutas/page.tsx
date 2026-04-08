@@ -35,7 +35,7 @@ type Vista = 'lista' | 'nueva' | 'editar'
 const RUTA_VACIA = { nombre: '', turno: 'matutino' as Turno, paradas: [] as Parada[], estado: 'programada' as EstadoRuta, unidad: '', placas: '' }
 
 export default function AdminRutasPage() {
-  const { autenticado, cargando } = useAuth()
+  const { autenticado, usuario, cargando } = useAuth()
   const router = useRouter()
   const [rutas, setRutas] = useState<Ruta[]>([])
   const [choferes, setChoferes] = useState<Usuario[]>([])
@@ -47,8 +47,10 @@ export default function AdminRutasPage() {
   const [guardando, setGuardando] = useState(false)
 
   useEffect(() => {
-    if (!cargando && !autenticado) router.replace('/admin')
-  }, [autenticado, cargando, router])
+    if (!cargando && (!autenticado || (usuario && usuario.rol !== 'admin' && usuario.rol !== 'superadmin'))) {
+      router.replace('/admin')
+    }
+  }, [autenticado, usuario, cargando, router])
 
   const cargarRutas = useCallback(async () => {
     setCargandoRutas(true)
