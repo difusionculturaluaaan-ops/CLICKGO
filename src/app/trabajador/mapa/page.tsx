@@ -8,8 +8,26 @@ import { useGPSReceiver } from '@/features/tracking/hooks/useGPSReceiver'
 import { usePresenciaWorker } from '@/features/tracking/hooks/usePresenciaWorker'
 import { useFCMToken } from '@/shared/hooks/useFCMToken'
 import { obtenerRuta } from '@/shared/lib/firebase/database'
+import { obtenerRutas } from '@/features/routes/services/rutas.service'
 import { cerrarSesion } from '@/shared/lib/firebase/auth'
 import type { Parada, Ruta } from '@/shared/types'
+
+function distanciaKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+function paradaMasCercana(ruta: Ruta, lat: number, lng: number): Parada | null {
+  if (!ruta.paradas?.length) return null
+  return ruta.paradas.reduce((mejor, p) => {
+    const d = distanciaKm(lat, lng, p.lat, p.lng)
+    const dMejor = distanciaKm(lat, lng, mejor.lat, mejor.lng)
+    return d < dMejor ? p : mejor
+  })
+}
 
 const MapaTiempoReal = nextDynamic(
   () => import('@/features/tracking/components/MapaTiempoReal').then((m) => m.MapaTiempoReal),
@@ -56,6 +74,11 @@ export default function TrabajadorMapaPage() {
   const [rutaFetched, setRutaFetched] = useState(false)
   const cargandoRuta = !!usuario?.rutaAsignada && !rutaFetched
 
+  // Rutas cercanas
+  const [rutasCercanas, setRutasCercanas] = useState<Ruta[]>([])
+  const [rutaVistaId, setRutaVistaId] = useState<string | null>(null)
+  const rutaVista = rutasCercanas.find(r => r.id === rutaVistaId) ?? ruta
+
   // Worker's own GPS position
   const [workerLat, setWorkerLat] = useState<number | null>(null)
   const [workerLng, setWorkerLng] = useState<number | null>(null)
@@ -64,24 +87,63 @@ export default function TrabajadorMapaPage() {
   // Signal freshness: 'live' | 'reciente' | 'viejo'
   const [frescura, setFrescura] = useState<'live' | 'reciente' | 'viejo'>('viejo')
 
-  // Resolver ruta y parada desde el perfil del usuario
+  // Resolver ruta asignada y todas las rutas cercanas
   useEffect(() => {
-    if (!usuario?.rutaAsignada) return
+    if (!usuario?.orgId) return
     let cancelled = false
-    obtenerRuta(usuario.rutaAsignada).then((r) => {
+
+    Promise.all([
+      usuario.rutaAsignada ? obtenerRuta(usuario.rutaAsignada) : Promise.resolve(null),
+      obtenerRutas(usuario.orgId),
+    ]).then(([rutaAsignada, todasRutas]) => {
       if (cancelled) return
-      setRuta(r)
-      if (r && usuario.paradaAsignada) {
-        const p = r.paradas?.find((p) => p.id === usuario.paradaAsignada) ?? null
+      setRuta(rutaAsignada)
+      if (rutaAsignada && usuario.paradaAsignada) {
+        const p = rutaAsignada.paradas?.find(p => p.id === usuario.paradaAsignada) ?? null
         setParada(p)
       }
       setRutaFetched(true)
+      // Guardar todas las rutas (la asignada primero)
+      const ordenadas = [
+        ...(rutaAsignada ? [rutaAsignada] : []),
+        ...todasRutas.filter(r => r.id !== rutaAsignada?.id),
+      ]
+      setRutasCercanas(ordenadas)
+      setRutaVistaId(rutaAsignada?.id ?? todasRutas[0]?.id ?? null)
     })
     return () => { cancelled = true }
   }, [usuario])
 
+  // Filtrar rutas con paradas a menos de 2 km cuando hay GPS
+  useEffect(() => {
+    if (workerLat === null || workerLng === null || rutasCercanas.length === 0) return
+    const RADIO_KM = 2
+    const cercanas = rutasCercanas.filter(r =>
+      r.paradas?.some(p => distanciaKm(workerLat, workerLng, p.lat, p.lng) <= RADIO_KM)
+    )
+    // Siempre incluir la ruta asignada aunque esté lejos
+    const asignada = ruta ? [ruta] : []
+    const ids = new Set(cercanas.map(r => r.id))
+    const final = [...cercanas, ...asignada.filter(r => !ids.has(r.id))]
+    if (final.length > 0) setRutasCercanas(final)
+  }, [workerLat, workerLng]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Al cambiar ruta vista, recalcular parada más cercana (si no es la asignada)
+  useEffect(() => {
+    if (!rutaVista) return
+    if (rutaVista.id === ruta?.id) {
+      // Restaurar parada asignada
+      const p = ruta.paradas?.find(p => p.id === usuario?.paradaAsignada) ?? null
+      setParada(p)
+    } else if (workerLat !== null && workerLng !== null) {
+      setParada(paradaMasCercana(rutaVista, workerLat, workerLng))
+    } else {
+      setParada(rutaVista.paradas?.[0] ?? null)
+    }
+  }, [rutaVistaId]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const { ubicacion, eta, conectado } = useGPSReceiver(
-    ruta?.id ?? null,
+    rutaVista?.id ?? null,
     parada?.lat ?? 0,
     parada?.lng ?? 0
   )
@@ -172,9 +234,10 @@ export default function TrabajadorMapaPage() {
 
   const estadoActual = eta?.estado ?? 'sin_senal'
   const config = ESTADO_CONFIG[estadoActual]
-  const nombreParada = parada?.nombre ?? 'Parada asignada'
+  const nombreParada = parada?.nombre ?? 'Parada más cercana'
   const paradaLat = parada?.lat ?? 0
   const paradaLng = parada?.lng ?? 0
+  const esRutaAlterna = rutaVista?.id !== ruta?.id
 
   const frescuraIcon = frescura === 'live' ? '🟢' : frescura === 'reciente' ? '🟡' : '🔴'
   const frescuraLabel = frescura === 'live' ? 'En vivo' : frescura === 'reciente' ? 'Reciente' : 'Sin señal'
@@ -217,20 +280,42 @@ export default function TrabajadorMapaPage() {
         </div>
       )}
 
+      {/* Selector de rutas */}
+      {rutasCercanas.length > 1 && (
+        <div className="bg-gray-800 border-b border-gray-700 px-4 py-2">
+          <p className="text-xs text-gray-500 mb-1.5">Selecciona el camión a seguir:</p>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {rutasCercanas.map(r => (
+              <button
+                key={r.id}
+                onClick={() => setRutaVistaId(r.id)}
+                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                  rutaVistaId === r.id
+                    ? 'bg-teal-600 border-teal-600 text-white'
+                    : 'bg-gray-700 border-gray-600 text-gray-300'
+                }`}
+              >
+                {r.id === ruta?.id ? '⭐ ' : ''}{r.nombre}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Ruta activa + datos de unidad */}
       <div className="bg-gray-800 px-4 py-2 border-b border-gray-700">
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-400">Ruta:</span>
-          <span className="text-xs text-teal-400 font-medium">{ruta.nombre}</span>
-          <span className="text-xs text-gray-600">· {ruta.turno}</span>
+          <span className="text-xs text-teal-400 font-medium">{rutaVista?.nombre}</span>
+          <span className="text-xs text-gray-600">· {rutaVista?.turno}</span>
         </div>
-        {(ruta.unidad || ruta.placas) && (
+        {(rutaVista?.unidad || rutaVista?.placas) && (
           <div className="flex items-center gap-3 mt-0.5">
-            {ruta.unidad && (
-              <span className="text-xs text-yellow-400 font-medium">🚌 Unidad {ruta.unidad}</span>
+            {rutaVista?.unidad && (
+              <span className="text-xs text-yellow-400 font-medium">🚌 Unidad {rutaVista.unidad}</span>
             )}
-            {ruta.placas && (
-              <span className="text-xs text-gray-500">{ruta.placas}</span>
+            {rutaVista?.placas && (
+              <span className="text-xs text-gray-500">{rutaVista.placas}</span>
             )}
           </div>
         )}
@@ -262,10 +347,10 @@ export default function TrabajadorMapaPage() {
           <div className="flex-1 min-w-0">
             <p className="text-white font-bold text-lg">{config.label}</p>
             <p className="text-white/80 text-sm">{config.texto}</p>
-            {ruta.unidad && estadoActual !== 'sin_senal' && (
+            {rutaVista?.unidad && estadoActual !== 'sin_senal' && (
               <p className="text-white/60 text-xs mt-0.5">
-                Busca la unidad <span className="font-bold text-white">{ruta.unidad}</span>
-                {ruta.placas && <span> · {ruta.placas}</span>}
+                Busca la unidad <span className="font-bold text-white">{rutaVista.unidad}</span>
+                {rutaVista.placas && <span> · {rutaVista.placas}</span>}
               </p>
             )}
           </div>
@@ -304,7 +389,7 @@ export default function TrabajadorMapaPage() {
             <span className="text-teal-400">📍</span>
             <div>
               <p className="text-white text-sm font-medium">{nombreParada}</p>
-              <p className="text-gray-500 text-xs">Tu parada asignada</p>
+              <p className="text-gray-500 text-xs">{esRutaAlterna ? 'Parada más cercana' : 'Tu parada asignada'}</p>
             </div>
           </div>
           {ultimaActualizacion && (
