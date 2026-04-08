@@ -1,13 +1,12 @@
 'use client'
 export const dynamic = 'force-dynamic'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useRutasActivas } from '@/features/admin/hooks/useRutasActivas'
 import { usePresenciaEnParadas } from '@/features/tracking/hooks/usePresenciaEnParadas'
 import { TarjetaRuta } from '@/features/admin/components/TarjetaRuta'
 import { cerrarSesion } from '@/shared/lib/firebase/auth'
-import { cargarDatosDemo } from '@/features/admin/lib/seed-demo'
 
 // Demo: org hardcodeada — en producción viene del perfil del admin
 const ORG_DEMO = 'org-demo-001'
@@ -37,19 +36,6 @@ export default function DashboardPage() {
   )
   const presencia = usePresenciaEnParadas(autenticado ? ORG_DEMO : null)
   const totalConectados = Object.values(presencia).reduce((sum, p) => sum + p.count, 0)
-  const [seedCargando, setSeedCargando] = useState(false)
-  const [seedListo, setSeedListo] = useState(false)
-
-  async function handleCargarDemo() {
-    setSeedCargando(true)
-    try {
-      await cargarDatosDemo()
-      setSeedListo(true)
-    } finally {
-      setSeedCargando(false)
-    }
-  }
-
   useEffect(() => {
     if (!cargando && !autenticado) router.replace('/admin')
   }, [autenticado, cargando, router])
@@ -152,20 +138,9 @@ export default function DashboardPage() {
             <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
               <p className="text-4xl mb-3">🚌</p>
               <p className="text-gray-700 font-semibold">Sin rutas configuradas</p>
-              <p className="text-gray-400 text-sm mt-1 mb-5">
-                Crea rutas manualmente o carga las 4 rutas de demo de Saltillo
+              <p className="text-gray-400 text-sm mt-1">
+                Ve a <strong>Rutas</strong> para crear las rutas del servicio
               </p>
-              {seedListo ? (
-                <p className="text-teal-600 font-medium text-sm">✅ Rutas demo cargadas — ve al Simulador</p>
-              ) : (
-                <button
-                  onClick={handleCargarDemo}
-                  disabled={seedCargando}
-                  className="bg-teal-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-teal-700 disabled:opacity-60 transition-colors"
-                >
-                  {seedCargando ? '⏳ Cargando...' : '🗺️ Cargar rutas demo (Saltillo)'}
-                </button>
-              )}
             </div>
           ) : (
             <div className="space-y-3">

@@ -6,7 +6,7 @@ export default function Home() {
 
       {/* ── NAV ──────────────────────────────────────────────────────────── */}
       <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-        <Image src="/logo 05.png" alt="ClickGo" width={200} height={80} className="h-16 w-auto object-contain mix-blend-multiply" />
+        <Image src="/logo_05-removebg-preview.png" alt="ClickGo" width={200} height={80} className="h-16 w-auto object-contain" />
         <div className="hidden md:flex items-center gap-8 text-sm text-gray-500">
           <a href="#como-funciona" className="hover:text-teal-600 transition-colors">Cómo funciona</a>
           <a href="#clientes" className="hover:text-teal-600 transition-colors">Para quién</a>
@@ -365,7 +365,7 @@ export default function Home() {
       {/* ── FOOTER ───────────────────────────────────────────────────────── */}
       <footer className="bg-gray-900 text-gray-400 py-10 px-6">
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <Image src="/logo 05.png" alt="ClickGo" width={200} height={80} className="h-16 w-auto object-contain mix-blend-screen" />
+          <Image src="/logo_05-removebg-preview.png" alt="ClickGo" width={200} height={80} className="h-16 w-auto object-contain" />
           <p className="text-sm">Saltillo, Coahuila · México</p>
           <div className="flex gap-6 text-sm">
             <a href="/trabajador/mapa" className="hover:text-white transition-colors">Demo trabajador</a>

@@ -1,0 +1,38 @@
+{
+  "rules": {
+    "rutas": {
+      "$rutaId": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('usuarios').child(auth.uid).child('rol').val() === 'admin'"
+      }
+    },
+    "usuarios": {
+      "$userId": {
+        ".read": "auth != null && (auth.uid === $userId || root.child('usuarios').child(auth.uid).child('rol').val() === 'admin')",
+        ".write": "auth != null && (auth.uid === $userId || root.child('usuarios').child(auth.uid).child('rol').val() === 'admin')"
+      }
+    },
+    "ubicaciones": {
+      "$rutaId": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('usuarios').child(auth.uid).child('rol').val() === 'chofer'"
+      }
+    },
+    "presencia": {
+      "$orgId": {
+        "$rutaId": {
+          "$paradaId": {
+            ".read": "auth != null",
+            ".write": "auth != null"
+          }
+        }
+      }
+    },
+    "esperando": {
+      "$paradaId": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('usuarios').child(auth.uid).child('rol').val() === 'trabajador'"
+      }
+    }
+  }
+}
