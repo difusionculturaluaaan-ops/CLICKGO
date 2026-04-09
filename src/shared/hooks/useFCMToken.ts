@@ -6,7 +6,7 @@ import { crearOActualizarUsuario } from '@/shared/lib/firebase/database'
 export function useFCMToken(userId: string | null) {
   const [token, setToken] = useState<string | null>(null)
   const [permiso, setPermiso] = useState<NotificationPermission>(() =>
-    typeof window !== 'undefined' ? Notification.permission : 'default'
+    typeof window !== 'undefined' && typeof Notification !== 'undefined' ? Notification.permission : 'default'
   )
 
   async function solicitarPermiso() {
