@@ -6,16 +6,24 @@ import { ref, get, update, push, set, remove } from 'firebase/database'
 import { db } from '@/shared/lib/firebase/config'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { obtenerRutas } from '@/features/routes/services/rutas.service'
-import type { Usuario, Ruta, Parada } from '@/shared/types'
+import type { Usuario, Ruta, Parada, Preregistro } from '@/shared/types'
+import { listarPreregistros, crearPreregistro, eliminarPreregistro } from '@/shared/lib/firebase/database'
 
 const ORG_DEMO = 'org-demo-001'
 
 // ─── Tipos para import ──────────────────────────────────────────────────────
+interface PreregistroImport {
+  empleadoId: string
+  rutaNombre?: string
+  paradaNombre?: string
+  _error?: string
+}
+
 interface UsuarioImport {
   nombre: string
   telefono: string
   rol: 'trabajador' | 'chofer'
-  rutaNombre?: string   // se resuelve a rutaId en el paso de confirmación
+  rutaNombre?: string
   _error?: string
 }
 
@@ -25,12 +33,23 @@ export default function AdminUsuariosPage() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [rutas, setRutas] = useState<Ruta[]>([])
   const [cargandoDatos, setCargandoDatos] = useState(true)
+  const [vista, setVista] = useState<'usuarios' | 'preregistros'>('usuarios')
   const [filtro, setFiltro] = useState<'todos' | 'trabajador' | 'chofer'>('todos')
   const [guardandoId, setGuardandoId] = useState<string | null>(null)
   const [eliminandoId, setEliminandoId] = useState<string | null>(null)
-  // Modal nuevo usuario
+  // Modal nuevo usuario (solo operadores)
   const [mostrarModal, setMostrarModal] = useState(false)
-  const [nuevoUsuario, setNuevoUsuario] = useState({ nombre: '', telefono: '+52', rol: 'trabajador' as 'trabajador' | 'chofer', rutaAsignada: '', paradaAsignada: '', numeroUnidad: '' })
+  const [nuevoUsuario, setNuevoUsuario] = useState({ nombre: '', telefono: '+52', rol: 'chofer' as 'trabajador' | 'chofer', rutaAsignada: '', paradaAsignada: '', numeroUnidad: '' })
+  // Preregistros
+  const [preregistros, setPreregistros] = useState<Preregistro[]>([])
+  const [cargandoPreregistros, setCargandoPreregistros] = useState(false)
+  const [nuevoPreregistro, setNuevoPreregistro] = useState({ empleadoId: '', rutaAsignada: '', paradaAsignada: '' })
+  const [guardandoPreregistro, setGuardandoPreregistro] = useState(false)
+  const [eliminandoPreregistro, setEliminandoPreregistro] = useState<string | null>(null)
+  const [preImportPreview, setPreImportPreview] = useState<PreregistroImport[] | null>(null)
+  const [preImportando, setPreImportando] = useState(false)
+  const [preImportResultado, setPreImportResultado] = useState<{ ok: number; errores: number } | null>(null)
+  const preFileInputRef = useRef<HTMLInputElement>(null)
   // Import masivo
   const [importPreview, setImportPreview] = useState<UsuarioImport[] | null>(null)
   const [importando, setImportando] = useState(false)
@@ -63,12 +82,132 @@ export default function AdminUsuariosPage() {
     if (autenticado) cargarDatos()
   }, [autenticado, cargarDatos])
 
+  const cargarPreregistros = useCallback(async () => {
+    setCargandoPreregistros(true)
+    const lista = await listarPreregistros(ORG_DEMO)
+    setPreregistros(lista.sort((a, b) => a.empleadoId.localeCompare(b.empleadoId)))
+    setCargandoPreregistros(false)
+  }, [])
+
+  useEffect(() => {
+    if (autenticado && vista === 'preregistros') cargarPreregistros()
+  }, [autenticado, vista, cargarPreregistros])
+
+  async function handleAgregarPreregistro(e: React.FormEvent) {
+    e.preventDefault()
+    const id = nuevoPreregistro.empleadoId.trim().toUpperCase()
+    if (!id) return
+    setGuardandoPreregistro(true)
+    await crearPreregistro(ORG_DEMO, {
+      empleadoId: id,
+      orgId: ORG_DEMO,
+      rutaAsignada: nuevoPreregistro.rutaAsignada || undefined,
+      paradaAsignada: nuevoPreregistro.paradaAsignada || undefined,
+      vinculado: false,
+      creadoEn: Date.now(),
+    })
+    setNuevoPreregistro({ empleadoId: '', rutaAsignada: '', paradaAsignada: '' })
+    setGuardandoPreregistro(false)
+    await cargarPreregistros()
+  }
+
+  async function handleEliminarPreregistro(empleadoId: string) {
+    if (!confirm(`¿Eliminar preregistro ${empleadoId}?`)) return
+    setEliminandoPreregistro(empleadoId)
+    await eliminarPreregistro(ORG_DEMO, empleadoId)
+    setPreregistros(prev => prev.filter(p => p.empleadoId !== empleadoId))
+    setEliminandoPreregistro(null)
+  }
+
+  async function handleDescargarPlantillaPreregistros() {
+    const ExcelJS = (await import('exceljs')).default
+    const wb = new ExcelJS.Workbook()
+    const ws = wb.addWorksheet('Preregistros')
+    ws.columns = [
+      { header: 'empleadoId', key: 'empleadoId', width: 20 },
+      { header: 'ruta',       key: 'ruta',       width: 30 },
+      { header: 'parada',     key: 'parada',      width: 30 },
+    ]
+    ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }
+    ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } }
+    ws.addRow({ empleadoId: 'EMP-001', ruta: 'Ruta Sur — San Isidro', parada: 'Parada Central' })
+    ws.addRow({ empleadoId: 'EMP-002', ruta: 'Ruta Sur — San Isidro', parada: 'Parada Norte' })
+    ws.addRow({ empleadoId: 'EMP-003', ruta: 'Ruta Este — Las Flores', parada: '' })
+    ws.getCell('E1').value = 'Columnas "ruta" y "parada" deben coincidir exactamente con los nombres en el sistema. Pueden dejarse vacías.'
+    ws.getCell('E1').font = { italic: true, color: { argb: 'FF6B7280' } }
+    const buffer = await wb.xlsx.writeBuffer()
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = 'plantilla-preregistros-clickgo.xlsx'; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  async function handleArchivoPreregistros(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    const ExcelJS = (await import('exceljs')).default
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(await file.arrayBuffer())
+    const ws = wb.worksheets[0]
+    if (!ws) return
+    const headers: string[] = []
+    ws.getRow(1).eachCell(cell => headers.push(String(cell.value ?? '').toLowerCase().trim()))
+    const iId     = headers.indexOf('empleadoid')
+    const iRuta   = headers.indexOf('ruta')
+    const iParada = headers.indexOf('parada')
+    const filas: PreregistroImport[] = []
+    ws.eachRow((row, rowNum) => {
+      if (rowNum === 1) return
+      const empleadoId = String(row.getCell(iId + 1).value ?? '').trim().toUpperCase()
+      if (!empleadoId) return
+      const rutaNombre   = iRuta   >= 0 ? String(row.getCell(iRuta   + 1).value ?? '').trim() : ''
+      const paradaNombre = iParada >= 0 ? String(row.getCell(iParada + 1).value ?? '').trim() : ''
+      filas.push({ empleadoId, rutaNombre: rutaNombre || undefined, paradaNombre: paradaNombre || undefined })
+    })
+    setPreImportPreview(filas)
+    setPreImportResultado(null)
+  }
+
+  async function handleConfirmarPreImport() {
+    if (!preImportPreview) return
+    setPreImportando(true)
+    const rutaMap = new Map(rutas.map(r => [r.nombre.toLowerCase(), r]))
+    let ok = 0, errores = 0
+    for (const fila of preImportPreview) {
+      if (fila._error) { errores++; continue }
+      const ruta = fila.rutaNombre ? rutaMap.get(fila.rutaNombre.toLowerCase()) : undefined
+      const parada = ruta && fila.paradaNombre
+        ? ruta.paradas?.find(p => p.nombre.toLowerCase() === fila.paradaNombre!.toLowerCase())
+        : undefined
+      await crearPreregistro(ORG_DEMO, {
+        empleadoId: fila.empleadoId,
+        orgId: ORG_DEMO,
+        rutaAsignada: ruta?.id,
+        paradaAsignada: parada?.id,
+        vinculado: false,
+        creadoEn: Date.now(),
+      })
+      ok++
+    }
+    setPreImportResultado({ ok, errores })
+    setPreImportPreview(null)
+    setPreImportando(false)
+    await cargarPreregistros()
+  }
+
   async function handleEliminarUsuario(userId: string) {
     if (!confirm('¿Eliminar este usuario? Esta acción no se puede deshacer.')) return
     setEliminandoId(userId)
     await remove(ref(db, `usuarios/${userId}`))
     setUsuarios(prev => prev.filter(u => u.id !== userId))
     setEliminandoId(null)
+  }
+
+  async function handleActualizarNombre(userId: string, nombre: string) {
+    await update(ref(db, `usuarios/${userId}`), { nombre })
+    setUsuarios(prev => prev.map(u => u.id === userId ? { ...u, nombre } : u))
   }
 
   async function handleAsignarRuta(userId: string, rutaId: string) {
@@ -94,14 +233,13 @@ export default function AdminUsuariosPage() {
       nombre: nuevoUsuario.nombre,
       telefono: nuevoUsuario.telefono,
       orgId: ORG_DEMO,
-      rol: nuevoUsuario.rol,
+      rol: 'chofer',
       rutaAsignada: nuevoUsuario.rutaAsignada || undefined,
-      paradaAsignada: nuevoUsuario.paradaAsignada || undefined,
       numeroUnidad: nuevoUsuario.numeroUnidad || undefined,
       creadoEn: Date.now(),
     })
     setMostrarModal(false)
-    setNuevoUsuario({ nombre: '', telefono: '+52', rol: 'trabajador', rutaAsignada: '', paradaAsignada: '', numeroUnidad: '' })
+    setNuevoUsuario({ nombre: '', telefono: '+52', rol: 'chofer', rutaAsignada: '', paradaAsignada: '', numeroUnidad: '' })
     await cargarDatos()
   }
 
@@ -252,35 +390,140 @@ export default function AdminUsuariosPage() {
         <div className="flex items-center gap-3">
           <button onClick={() => router.push('/admin/dashboard')} className="text-teal-200">←</button>
           <div>
-            <h1 className="font-bold">Trabajadores</h1>
-            <p className="text-teal-200 text-xs">{usuariosFiltrados.length} usuarios</p>
+            <h1 className="font-bold">Usuarios</h1>
+            <p className="text-teal-200 text-xs">
+              {vista === 'usuarios' ? `${usuariosFiltrados.length} registrados` : `${preregistros.length} preregistros`}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {/* Importar Excel */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={handleArchivoSeleccionado}
-            className="hidden"
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded-xl text-sm font-medium"
-          >
-            📥 Importar
-          </button>
-          <button
-            onClick={() => setMostrarModal(true)}
-            className="bg-white text-teal-700 px-3 py-1.5 rounded-xl text-sm font-medium"
-          >
-            + Agregar
-          </button>
+          {vista === 'usuarios' && (
+            <>
+              <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleArchivoSeleccionado} className="hidden" />
+              <button onClick={() => fileInputRef.current?.click()} className="bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded-xl text-sm font-medium">
+                📥 Importar
+              </button>
+              <button onClick={() => { setMostrarModal(true); setNuevoUsuario(p => ({ ...p, rol: 'chofer' })) }} className="bg-white text-teal-700 px-3 py-1.5 rounded-xl text-sm font-medium">
+                + Operador
+              </button>
+            </>
+          )}
         </div>
       </header>
 
+      {/* Toggle vista */}
+      <div className="bg-teal-800 px-4 pb-3 flex gap-2">
+        <button
+          onClick={() => setVista('usuarios')}
+          className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${vista === 'usuarios' ? 'bg-white text-teal-800' : 'text-teal-200'}`}
+        >
+          👥 Registrados
+        </button>
+        <button
+          onClick={() => setVista('preregistros')}
+          className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${vista === 'preregistros' ? 'bg-white text-teal-800' : 'text-teal-200'}`}
+        >
+          📋 Preregistros
+        </button>
+      </div>
+
       <main className="max-w-2xl mx-auto px-4 py-4 space-y-4">
+
+        {/* ── Vista Preregistros ─────────────────────────────────────────── */}
+        {vista === 'preregistros' && (
+          <>
+            {/* Barra importar preregistros */}
+            <input ref={preFileInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleArchivoPreregistros} className="hidden" />
+            <div className="bg-teal-50 border border-teal-200 rounded-2xl px-4 py-3 flex items-center justify-between">
+              <p className="text-teal-700 text-sm">¿Tienes lista en Excel? Importa masivamente</p>
+              <div className="flex gap-2">
+                <button onClick={handleDescargarPlantillaPreregistros} className="text-teal-700 font-semibold text-sm underline shrink-0">Plantilla</button>
+                <button onClick={() => preFileInputRef.current?.click()} className="bg-teal-700 text-white px-3 py-1 rounded-xl text-sm font-medium">📥 Importar</button>
+              </div>
+            </div>
+
+            {/* Resultado import preregistros */}
+            {preImportResultado && (
+              <div className={`rounded-2xl p-4 flex items-center justify-between ${preImportResultado.errores > 0 ? 'bg-yellow-50 border border-yellow-200' : 'bg-green-50 border border-green-200'}`}>
+                <p className="text-sm text-gray-700">{preImportResultado.ok} preregistros importados{preImportResultado.errores > 0 ? ` · ${preImportResultado.errores} omitidos` : ''}</p>
+                <button onClick={() => setPreImportResultado(null)} className="text-gray-400">✕</button>
+              </div>
+            )}
+
+            {/* Formulario agregar preregistro */}
+            <form onSubmit={handleAgregarPreregistro} className="bg-white rounded-2xl shadow-sm p-4 space-y-3">
+              <h3 className="font-semibold text-gray-800 text-sm">Agregar trabajador pre-aprobado</h3>
+              <input
+                placeholder="Número de empleado (ej. EMP-0042)"
+                value={nuevoPreregistro.empleadoId}
+                onChange={e => setNuevoPreregistro(p => ({ ...p, empleadoId: e.target.value.toUpperCase() }))}
+                required
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 uppercase"
+              />
+              <select
+                value={nuevoPreregistro.rutaAsignada}
+                onChange={e => setNuevoPreregistro(p => ({ ...p, rutaAsignada: e.target.value, paradaAsignada: '' }))}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+              >
+                <option value="">— Ruta (opcional) —</option>
+                {rutas.map(r => <option key={r.id} value={r.id}>{r.nombre} ({r.turno})</option>)}
+              </select>
+              {nuevoPreregistro.rutaAsignada && (
+                <select
+                  value={nuevoPreregistro.paradaAsignada}
+                  onChange={e => setNuevoPreregistro(p => ({ ...p, paradaAsignada: e.target.value }))}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                >
+                  <option value="">— Parada (opcional) —</option>
+                  {getParadasDeRuta(nuevoPreregistro.rutaAsignada).map(p => (
+                    <option key={p.id} value={p.id}>{p.orden}. {p.nombre}</option>
+                  ))}
+                </select>
+              )}
+              <button
+                type="submit"
+                disabled={guardandoPreregistro || !nuevoPreregistro.empleadoId.trim()}
+                className="w-full py-2.5 bg-teal-700 text-white rounded-xl text-sm font-medium disabled:opacity-50"
+              >
+                {guardandoPreregistro ? 'Guardando...' : '+ Agregar preregistro'}
+              </button>
+            </form>
+
+            {/* Lista preregistros */}
+            {cargandoPreregistros ? (
+              [1,2,3].map(i => <div key={i} className="h-16 bg-white rounded-2xl animate-pulse" />)
+            ) : preregistros.length === 0 ? (
+              <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
+                <p className="text-2xl mb-2">📋</p>
+                <p className="text-gray-500 text-sm">Sin preregistros. Agrega números de empleado arriba.</p>
+              </div>
+            ) : preregistros.map(pre => {
+              const ruta = rutas.find(r => r.id === pre.rutaAsignada)
+              return (
+                <div key={pre.empleadoId} className="bg-white rounded-2xl shadow-sm px-4 py-3 flex items-center justify-between">
+                  <div>
+                    <p className="font-mono font-semibold text-gray-900">{pre.empleadoId}</p>
+                    <p className="text-xs text-gray-400">
+                      {ruta ? `📍 ${ruta.nombre}` : 'Sin ruta'}
+                      {pre.vinculado && <span className="ml-2 text-green-600">✓ Registrado</span>}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleEliminarPreregistro(pre.empleadoId)}
+                    disabled={eliminandoPreregistro === pre.empleadoId}
+                    className="text-red-400 hover:text-red-600 text-sm px-2 py-1 rounded-lg hover:bg-red-50 disabled:opacity-40"
+                  >
+                    {eliminandoPreregistro === pre.empleadoId ? '...' : '🗑'}
+                  </button>
+                </div>
+              )
+            })}
+          </>
+        )}
+
+        {/* ── Vista Usuarios ─────────────────────────────────────────────── */}
+        {vista === 'usuarios' && <>
+
         {/* Resultado import */}
         {importResultado && (
           <div className={`rounded-2xl p-4 flex items-center justify-between ${importResultado.errores > 0 ? 'bg-yellow-50 border border-yellow-200' : 'bg-green-50 border border-green-200'}`}>
@@ -338,7 +581,19 @@ export default function AdminUsuariosPage() {
               <div key={usuario.id} className="bg-white rounded-2xl shadow-sm p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900">{usuario.nombre || 'Sin nombre'}</p>
+                    {usuario.rol === 'chofer' ? (
+                      <input
+                        defaultValue={usuario.nombre}
+                        placeholder="Sin nombre"
+                        onBlur={e => {
+                          const val = e.target.value.trim()
+                          if (val !== usuario.nombre) handleActualizarNombre(usuario.id, val)
+                        }}
+                        className="font-semibold text-gray-900 w-full bg-transparent border-b border-transparent hover:border-gray-300 focus:border-teal-500 focus:outline-none py-0.5 text-base"
+                      />
+                    ) : (
+                      <p className="font-semibold text-gray-900 font-mono text-sm">{usuario.nombre || 'Sin nombre'}</p>
+                    )}
                     <p className="text-sm text-gray-400">{usuario.telefono}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -408,30 +663,46 @@ export default function AdminUsuariosPage() {
             )
           })
         )}
+        </> }
       </main>
 
-      {/* Modal nuevo usuario */}
+      {/* Modal preview import preregistros */}
+      {preImportPreview && (
+        <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-50 overflow-hidden">
+          <div className="bg-white w-full max-w-md rounded-t-2xl flex flex-col" style={{ maxHeight: '85vh' }}>
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="font-bold text-gray-900">Vista previa — {preImportPreview.length} empleados</h2>
+              </div>
+              <button onClick={() => setPreImportPreview(null)} className="text-gray-400 text-xl">✕</button>
+            </div>
+            <div className="overflow-y-auto flex-1 px-4 py-3 space-y-2">
+              {preImportPreview.map((fila, i) => (
+                <div key={i} className="rounded-xl px-3 py-2 bg-gray-50 flex items-center justify-between">
+                  <span className="font-mono font-semibold text-gray-900">{fila.empleadoId}</span>
+                  <span className="text-xs text-gray-500 truncate ml-2">{fila.rutaNombre ?? 'Sin ruta'}</span>
+                </div>
+              ))}
+            </div>
+            <div className="px-5 py-4 border-t border-gray-100 flex gap-3">
+              <button onClick={() => setPreImportPreview(null)} className="flex-1 py-3 border border-gray-200 rounded-xl text-gray-600">Cancelar</button>
+              <button
+                onClick={handleConfirmarPreImport}
+                disabled={preImportando}
+                className="flex-1 py-3 bg-teal-700 text-white rounded-xl font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {preImportando ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Importando...</> : `Confirmar ${preImportPreview.length}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal nuevo operador */}
       {mostrarModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white w-full max-w-md rounded-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-            <h2 className="font-bold text-gray-900 text-lg">Nuevo usuario</h2>
-
-            {/* Rol */}
-            <div className="grid grid-cols-2 gap-2">
-              {(['trabajador', 'chofer'] as const).map(rol => (
-                <button
-                  key={rol}
-                  onClick={() => setNuevoUsuario(p => ({ ...p, rol, rutaAsignada: '', paradaAsignada: '', numeroUnidad: '' }))}
-                  className={`py-2 rounded-xl text-sm font-medium border ${
-                    nuevoUsuario.rol === rol ? 'bg-teal-700 text-white border-teal-700' : 'bg-white text-gray-600 border-gray-200'
-                  }`}
-                >
-                  {rol === 'trabajador' ? '👷 Trabajador' : '🚌 Operador'}
-                </button>
-              ))}
-            </div>
-
-            {/* Datos comunes */}
+            <h2 className="font-bold text-gray-900 text-lg">🚌 Nuevo operador</h2>
             <input
               placeholder="Nombre completo"
               value={nuevoUsuario.nombre}
@@ -444,65 +715,23 @@ export default function AdminUsuariosPage() {
               onChange={e => setNuevoUsuario(p => ({ ...p, telefono: e.target.value }))}
               className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
-
-            {/* Campos específicos de Operador */}
-            {nuevoUsuario.rol === 'chofer' && (
-              <>
-                <input
-                  placeholder="No. de unidad (ej. U-12)"
-                  value={nuevoUsuario.numeroUnidad}
-                  onChange={e => setNuevoUsuario(p => ({ ...p, numeroUnidad: e.target.value }))}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                />
-                <div>
-                  <label className="text-xs text-gray-500 font-medium">Ruta asignada</label>
-                  <select
-                    value={nuevoUsuario.rutaAsignada}
-                    onChange={e => setNuevoUsuario(p => ({ ...p, rutaAsignada: e.target.value }))}
-                    className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  >
-                    <option value="">— Sin asignar —</option>
-                    {rutas.map(r => (
-                      <option key={r.id} value={r.id}>{r.nombre} ({r.turno})</option>
-                    ))}
-                  </select>
-                </div>
-              </>
-            )}
-
-            {/* Campos específicos de Trabajador */}
-            {nuevoUsuario.rol === 'trabajador' && (
-              <>
-                <div>
-                  <label className="text-xs text-gray-500 font-medium">Ruta asignada</label>
-                  <select
-                    value={nuevoUsuario.rutaAsignada}
-                    onChange={e => setNuevoUsuario(p => ({ ...p, rutaAsignada: e.target.value, paradaAsignada: '' }))}
-                    className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  >
-                    <option value="">— Sin asignar —</option>
-                    {rutas.map(r => (
-                      <option key={r.id} value={r.id}>{r.nombre} ({r.turno})</option>
-                    ))}
-                  </select>
-                </div>
-                {nuevoUsuario.rutaAsignada && (
-                  <div>
-                    <label className="text-xs text-gray-500 font-medium">Parada asignada</label>
-                    <select
-                      value={nuevoUsuario.paradaAsignada}
-                      onChange={e => setNuevoUsuario(p => ({ ...p, paradaAsignada: e.target.value }))}
-                      className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    >
-                      <option value="">— Sin parada —</option>
-                      {getParadasDeRuta(nuevoUsuario.rutaAsignada).map(p => (
-                        <option key={p.id} value={p.id}>{p.orden}. {p.nombre}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              </>
-            )}
+            <input
+              placeholder="No. de unidad (ej. U-12)"
+              value={nuevoUsuario.numeroUnidad}
+              onChange={e => setNuevoUsuario(p => ({ ...p, numeroUnidad: e.target.value }))}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+            <div>
+              <label className="text-xs text-gray-500 font-medium">Ruta asignada</label>
+              <select
+                value={nuevoUsuario.rutaAsignada}
+                onChange={e => setNuevoUsuario(p => ({ ...p, rutaAsignada: e.target.value }))}
+                className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+              >
+                <option value="">— Sin asignar —</option>
+                {rutas.map(r => <option key={r.id} value={r.id}>{r.nombre} ({r.turno})</option>)}
+              </select>
+            </div>
             <div className="flex gap-3 pt-2">
               <button onClick={() => setMostrarModal(false)} className="flex-1 py-3 border border-gray-200 rounded-xl text-gray-600">
                 Cancelar

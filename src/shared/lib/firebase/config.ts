@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app'
 import { getDatabase } from 'firebase/database'
 import { getAuth } from 'firebase/auth'
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check'
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -14,6 +15,16 @@ const firebaseConfig = {
 
 // Singleton — evita inicializar múltiples veces en hot reload
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig)
+
+// App Check con reCAPTCHA Enterprise — requerido para phone auth en Blaze
+if (typeof window !== 'undefined' && getApps().length === 1) {
+  initializeAppCheck(app, {
+    provider: new ReCaptchaEnterpriseProvider(
+      process.env.NEXT_PUBLIC_RECAPTCHA_ENTERPRISE_KEY!
+    ),
+    isTokenAutoRefreshEnabled: true,
+  })
+}
 
 export const db = getDatabase(app)
 export const auth = getAuth(app)

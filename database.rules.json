@@ -1,29 +1,31 @@
 {
   "rules": {
-    "rutas": {
-      "$rutaId": {
-        ".read": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === data.child('orgId').val()",
-        ".write": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === data.child('orgId').val() && (root.child('usuarios').child(auth.uid).child('rol').val() === 'admin' || root.child('usuarios').child(auth.uid).child('rol').val() === 'superadmin')"
+    "usuarios": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$userId": {
+        ".read": "auth != null"
       }
     },
-    "usuarios": {
-      "$userId": {
-        ".read": "auth != null && (auth.uid === $userId || root.child('usuarios').child(auth.uid).child('rol').val() === 'admin' || root.child('usuarios').child(auth.uid).child('rol').val() === 'superadmin')",
-        ".write": "auth != null && (auth.uid === $userId || root.child('usuarios').child(auth.uid).child('rol').val() === 'admin' || root.child('usuarios').child(auth.uid).child('rol').val() === 'superadmin')"
+    "rutas": {
+      ".read": "auth != null",
+      "$rutaId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
       }
     },
     "ubicaciones": {
       "$rutaId": {
-        ".read": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === root.child('rutas').child($rutaId).child('orgId').val()",
-        ".write": "auth != null && (root.child('usuarios').child(auth.uid).child('rol').val() === 'chofer' || root.child('usuarios').child(auth.uid).child('rol').val() === 'admin') && root.child('usuarios').child(auth.uid).child('orgId').val() === root.child('rutas').child($rutaId).child('orgId').val()"
+        ".read": "auth != null",
+        ".write": "auth != null"
       }
     },
     "presencia": {
       "$orgId": {
-        ".read": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId",
+        ".read": "auth != null",
         "$rutaId": {
           "$paradaId": {
-            ".write": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId"
+            ".write": "auth != null"
           }
         }
       }
@@ -31,13 +33,22 @@
     "esperando": {
       "$paradaId": {
         ".read": "auth != null",
-        ".write": "auth != null && root.child('usuarios').child(auth.uid).child('rol').val() === 'trabajador'"
+        ".write": "auth != null"
       }
     },
     "historial": {
       "$orgId": {
-        ".read": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId",
-        ".write": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId && (root.child('usuarios').child(auth.uid).child('rol').val() === 'admin' || root.child('usuarios').child(auth.uid).child('rol').val() === 'chofer')"
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "organizaciones": {
+      ".read": "auth != null"
+    },
+    "preregistros": {
+      "$orgId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
       }
     }
   }

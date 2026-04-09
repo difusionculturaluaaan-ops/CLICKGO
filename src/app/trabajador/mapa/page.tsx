@@ -114,14 +114,15 @@ export default function TrabajadorMapaPage() {
     return () => { cancelled = true }
   }, [usuario])
 
-  // Filtrar rutas con paradas a menos de 2 km cuando hay GPS
+  // Filtrar rutas a 2 km cuando el GPS se establece por primera vez
+  const filtroAplicadoRef = useRef(false)
   useEffect(() => {
-    if (workerLat === null || workerLng === null || rutasCercanas.length === 0) return
+    if (workerLat === null || workerLng === null || filtroAplicadoRef.current) return
+    filtroAplicadoRef.current = true
     const RADIO_KM = 2
     const cercanas = rutasCercanas.filter(r =>
       r.paradas?.some(p => distanciaKm(workerLat, workerLng, p.lat, p.lng) <= RADIO_KM)
     )
-    // Siempre incluir la ruta asignada aunque esté lejos
     const asignada = ruta ? [ruta] : []
     const ids = new Set(cercanas.map(r => r.id))
     const final = [...cercanas, ...asignada.filter(r => !ids.has(r.id))]
@@ -248,7 +249,7 @@ export default function TrabajadorMapaPage() {
       <header className="bg-gray-900 border-b border-gray-700 px-4 py-3 flex items-center justify-between">
         <div>
           <h1 className="font-bold text-white">ClickGo</h1>
-          <p className="text-gray-400 text-xs">{usuario?.nombre || usuario?.telefono || 'Trabajador'}</p>
+          <p className="text-gray-400 text-xs">{usuario?.empleadoId ?? 'Trabajador'}</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs">{frescuraIcon}</span>

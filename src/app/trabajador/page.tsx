@@ -2,7 +2,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/features/auth/hooks/useAuth'
-import { PhoneLoginForm } from '@/features/auth/components/PhoneLoginForm'
+import { WorkerRegistrationForm } from '@/features/auth/components/WorkerRegistrationForm'
 
 export default function TrabajadorPage() {
   const { autenticado, cargando } = useAuth()
@@ -34,7 +34,7 @@ export default function TrabajadorPage() {
           <h1 className="text-2xl font-bold text-teal-900">App Trabajador</h1>
           <p className="text-teal-600 text-sm mt-1">ClickGo — Rastreo en tiempo real</p>
         </div>
-        <PhoneLoginForm />
+        <WorkerRegistrationForm orgId="org-demo-001" />
       </div>
     </div>
   )

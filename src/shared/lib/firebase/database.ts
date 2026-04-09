@@ -6,6 +6,7 @@ import {
   get,
   update,
   push,
+  remove,
 } from 'firebase/database'
 import { db } from './config'
 import type { Ubicacion, Ruta, Usuario, Organization, ETAResult } from '@/shared/types'
@@ -132,6 +133,55 @@ export async function obtenerUsuario(userId: string): Promise<Usuario | null> {
 
 export async function crearOActualizarUsuario(userId: string, datos: Partial<Usuario>): Promise<void> {
   return update(ref(db, `usuarios/${userId}`), datos)
+}
+
+/**
+ * Busca un perfil de usuario por número de teléfono dentro de una org.
+ * Usado para vincular perfiles pre-creados por admin cuando el operador inicia sesión.
+ */
+export async function buscarUsuarioPorTelefono(telefono: string, orgId: string): Promise<Usuario | null> {
+  const snap = await get(ref(db, 'usuarios'))
+  if (!snap.exists()) return null
+  const todos = snap.val() as Record<string, Usuario>
+  const encontrado = Object.values(todos).find(
+    u => u.telefono === telefono && u.orgId === orgId
+  )
+  return encontrado ?? null
+}
+
+/**
+ * Vincula un perfil pre-creado (por teléfono) al UID real de Firebase Auth.
+ * Copia el perfil al key correcto (uid) y elimina el antiguo.
+ */
+export async function vincularPerfilAlUid(uidNuevo: string, perfilExistente: Usuario): Promise<void> {
+  if (perfilExistente.id === uidNuevo) return // ya está vinculado
+  await set(ref(db, `usuarios/${uidNuevo}`), { ...perfilExistente, id: uidNuevo })
+  await remove(ref(db, `usuarios/${perfilExistente.id}`))
+}
+
+// ─── Preregistros de trabajadores ─────────────────────────────────────────────
+
+export async function obtenerPreregistro(orgId: string, empleadoId: string): Promise<import('@/shared/types').Preregistro | null> {
+  const snap = await get(ref(db, `preregistros/${orgId}/${empleadoId}`))
+  return snap.exists() ? snap.val() : null
+}
+
+export async function crearPreregistro(orgId: string, datos: import('@/shared/types').Preregistro): Promise<void> {
+  await set(ref(db, `preregistros/${orgId}/${datos.empleadoId}`), datos)
+}
+
+export async function eliminarPreregistro(orgId: string, empleadoId: string): Promise<void> {
+  await remove(ref(db, `preregistros/${orgId}/${empleadoId}`))
+}
+
+export async function listarPreregistros(orgId: string): Promise<import('@/shared/types').Preregistro[]> {
+  const snap = await get(ref(db, `preregistros/${orgId}`))
+  if (!snap.exists()) return []
+  return Object.values(snap.val() as Record<string, import('@/shared/types').Preregistro>)
+}
+
+export async function marcarPreregistroVinculado(orgId: string, empleadoId: string): Promise<void> {
+  await update(ref(db, `preregistros/${orgId}/${empleadoId}`), { vinculado: true })
 }
 
 // ─── Organizaciones ───────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import {
   signInWithPhoneNumber,
+  signInWithEmailAndPassword,
   RecaptchaVerifier,
   ConfirmationResult,
   signOut,
@@ -7,7 +8,7 @@ import {
   User,
 } from 'firebase/auth'
 import { auth } from './config'
-import { crearOActualizarUsuario, obtenerUsuario } from './database'
+import { crearOActualizarUsuario, obtenerUsuario, buscarUsuarioPorTelefono, vincularPerfilAlUid } from './database'
 
 // ─── reCAPTCHA ────────────────────────────────────────────────────────────────
 
@@ -21,6 +22,7 @@ export function inicializarRecaptcha(): RecaptchaVerifier {
   if (recaptchaVerifier) return recaptchaVerifier
   recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
     size: 'invisible',
+    callback: () => {},
   })
   return recaptchaVerifier
 }
@@ -53,6 +55,13 @@ export async function confirmarCodigo(
   return result.user
 }
 
+// ─── Login con email y contraseña ────────────────────────────────────────────
+
+export async function iniciarSesionEmail(email: string, password: string): Promise<User> {
+  const result = await signInWithEmailAndPassword(auth, email, password)
+  return result.user
+}
+
 // ─── Sesión ───────────────────────────────────────────────────────────────────
 
 export function cerrarSesion(): Promise<void> {
@@ -78,23 +87,38 @@ export function usuarioActual(): User | null {
  */
 export async function sincronizarPerfilUsuario(
   user: User,
-  datosExtra?: { orgId?: string; rutaAsignada?: string; paradaAsignada?: string }
+  datosExtra?: { orgId?: string; rol?: 'trabajador' | 'chofer'; rutaAsignada?: string; paradaAsignada?: string }
 ): Promise<void> {
-  const existente = await obtenerUsuario(user.uid)
-  if (existente) {
-    // Solo actualiza fcmToken si ya existe
-    await crearOActualizarUsuario(user.uid, { fcmToken: undefined })
+  if (!datosExtra?.orgId) return
+
+  let existente = null
+  try {
+    existente = await obtenerUsuario(user.uid)
+  } catch {
     return
   }
-  // Primera vez: crea el perfil con rol 'trabajador' por defecto
-  await crearOActualizarUsuario(user.uid, {
-    id: user.uid,
-    nombre: user.displayName ?? '',
-    telefono: user.phoneNumber ?? '',
-    orgId: datosExtra?.orgId ?? '',
-    rutaAsignada: datosExtra?.rutaAsignada,
-    paradaAsignada: datosExtra?.paradaAsignada,
-    rol: 'trabajador',
-    creadoEn: Date.now(),
-  })
+
+  if (existente) return
+
+  // Buscar perfil pre-creado por admin via teléfono (operadores)
+  const telefono = user.phoneNumber ?? ''
+  try {
+    const preCreado = await buscarUsuarioPorTelefono(telefono, datosExtra.orgId)
+    if (preCreado) {
+      await vincularPerfilAlUid(user.uid, preCreado)
+      return
+    }
+  } catch { /* continuar */ }
+
+  // Crear perfil nuevo (solo para chofer sin pre-registro — no aplica a trabajadores)
+  if (datosExtra.rol !== 'trabajador') {
+    await crearOActualizarUsuario(user.uid, {
+      id: user.uid,
+      nombre: '',
+      telefono,
+      orgId: datosExtra.orgId,
+      rol: datosExtra.rol ?? 'chofer',
+      creadoEn: Date.now(),
+    })
+  }
 }

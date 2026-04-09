@@ -118,7 +118,7 @@ export default function SimuladorPage() {
         )}
         <button
           onClick={() => setTemaMapa(t => t === 'oscuro' ? 'claro' : 'oscuro')}
-          className="absolute top-2 right-2 z-[1000] bg-white/90 rounded-full w-8 h-8 flex items-center justify-center shadow text-base"
+          className="absolute top-2 right-2 z-1000 bg-white/90 rounded-full w-8 h-8 flex items-center justify-center shadow text-base"
           title="Cambiar tema del mapa"
         >
           {temaMapa === 'oscuro' ? '☀️' : '🌙'}

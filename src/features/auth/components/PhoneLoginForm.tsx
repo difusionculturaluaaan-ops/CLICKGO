@@ -8,7 +8,12 @@ type Paso = 'telefono' | 'codigo'
 const PHONE_REGEX = /^\+\d{10,15}$/
 const SMS_COOLDOWN_MS = 30_000
 
-export function PhoneLoginForm() {
+interface PhoneLoginFormProps {
+  orgId: string
+  rol: 'trabajador' | 'chofer'
+}
+
+export function PhoneLoginForm({ orgId, rol }: PhoneLoginFormProps) {
   const [paso, setPaso] = useState<Paso>('telefono')
   const [telefono, setTelefono] = useState('+52')
   const [codigo, setCodigo] = useState('')
@@ -61,7 +66,7 @@ export function PhoneLoginForm() {
     setCargando(true)
     try {
       const user = await confirmarCodigo(confirmation, codigo)
-      await sincronizarPerfilUsuario(user)
+      await sincronizarPerfilUsuario(user, { orgId, rol })
       // El redirect lo maneja el padre via useAuth
     } catch {
       setError('Código incorrecto. Intenta de nuevo.')

@@ -34,7 +34,7 @@ export default function OperadorPage() {
           <h1 className="text-2xl font-bold text-teal-900">App Operador</h1>
           <p className="text-teal-600 text-sm mt-1">ClickGo — Transmisor GPS</p>
         </div>
-        <PhoneLoginForm />
+        <PhoneLoginForm orgId="org-demo-001" rol="chofer" />
       </div>
     </div>
   )

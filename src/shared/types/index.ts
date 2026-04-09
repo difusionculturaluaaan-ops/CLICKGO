@@ -72,8 +72,20 @@ export interface Usuario {
   rutaAsignada?: string        // rutaId
   paradaAsignada?: string      // paradaId
   rol: RolUsuario
+  empleadoId?: string          // solo para trabajadores (número de empleado maquiladora)
   numeroUnidad?: string        // solo para choferes/operadores
   fcmToken?: string            // para push notifications
+  creadoEn: number
+}
+
+// ─── Preregistro de trabajador ────────────────────────────────────────────────
+
+export interface Preregistro {
+  empleadoId: string           // número de empleado (clave primaria)
+  orgId: string
+  rutaAsignada?: string        // rutaId pre-asignada
+  paradaAsignada?: string      // paradaId pre-asignada
+  vinculado?: boolean          // true cuando ya se registró con su cel
   creadoEn: number
 }
 
