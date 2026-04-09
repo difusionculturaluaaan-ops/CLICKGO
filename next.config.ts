@@ -14,6 +14,19 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   turbopack: {},
+  async rewrites() {
+    return [
+      // Proxy Firebase Auth handler al dominio propio — evita redirecciones cross-origin en iOS
+      {
+        source: '/__/auth/:path*',
+        destination: 'https://sigo-55fff.firebaseapp.com/__/auth/:path*',
+      },
+      {
+        source: '/__/firebase/:path*',
+        destination: 'https://sigo-55fff.firebaseapp.com/__/firebase/:path*',
+      },
+    ]
+  },
   async headers() {
     return [
       {
