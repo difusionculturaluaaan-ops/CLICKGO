@@ -20,7 +20,9 @@
       "Bash(wsl -d Ubuntu -- bash -c \"lsof -i :3000 2>/dev/null || ss -tlnp | grep 3000\")",
       "Bash(wsl -d Ubuntu -- bash -c \"kill -9 2838\")",
       "Bash(xargs grep:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Read(//c/Users/image/.claude/projects/c--Users-image-Developer-software-clickgo/memory\" 2>/dev/**)",
+      "Read(//c/Users/image/.claude/projects/c--Users-image-Developer-software-clickgo/memory/**)"
     ]
   }
 }

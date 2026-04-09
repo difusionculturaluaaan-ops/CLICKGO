@@ -77,8 +77,8 @@ export function PhoneLoginForm({ orgId, rol }: PhoneLoginFormProps) {
 
   return (
     <div className="w-full max-w-sm mx-auto">
-      {/* reCAPTCHA invisible — Firebase lo requiere */}
-      <div id="recaptcha-container" />
+      {/* reCAPTCHA — Firebase lo requiere para SMS */}
+      <div id="recaptcha-container" className="flex justify-center" />
 
       {paso === 'telefono' ? (
         <form onSubmit={handleEnviarCodigo} className="flex flex-col gap-4">

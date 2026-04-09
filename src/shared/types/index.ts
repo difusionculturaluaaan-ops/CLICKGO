@@ -69,8 +69,9 @@ export interface Usuario {
   nombre: string
   telefono: string
   orgId: string
-  rutaAsignada?: string        // rutaId
+  rutaAsignada?: string        // rutaId (trabajadores — una sola parada)
   paradaAsignada?: string      // paradaId
+  rutasAsignadas?: string[]    // rutaIds (choferes — pueden tener varias rutas/turnos)
   rol: RolUsuario
   empleadoId?: string          // solo para trabajadores (número de empleado maquiladora)
   numeroUnidad?: string        // solo para choferes/operadores

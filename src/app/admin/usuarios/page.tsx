@@ -39,7 +39,7 @@ export default function AdminUsuariosPage() {
   const [eliminandoId, setEliminandoId] = useState<string | null>(null)
   // Modal nuevo usuario (solo operadores)
   const [mostrarModal, setMostrarModal] = useState(false)
-  const [nuevoUsuario, setNuevoUsuario] = useState({ nombre: '', telefono: '+52', rol: 'chofer' as 'trabajador' | 'chofer', rutaAsignada: '', paradaAsignada: '', numeroUnidad: '' })
+  const [nuevoUsuario, setNuevoUsuario] = useState({ nombre: '', telefono: '+52', rol: 'chofer' as 'trabajador' | 'chofer', rutaAsignada: '', paradaAsignada: '', numeroUnidad: '', rutasAsignadas: [] as string[] })
   // Preregistros
   const [preregistros, setPreregistros] = useState<Preregistro[]>([])
   const [cargandoPreregistros, setCargandoPreregistros] = useState(false)
@@ -217,6 +217,15 @@ export default function AdminUsuariosPage() {
     setGuardandoId(null)
   }
 
+  async function handleToggleRutaChofer(userId: string, rutaId: string, rutasActuales: string[]) {
+    const nuevas = rutasActuales.includes(rutaId)
+      ? rutasActuales.filter(id => id !== rutaId)
+      : [...rutasActuales, rutaId]
+    const rutaPrincipal = nuevas[0] ?? undefined
+    await update(ref(db, `usuarios/${userId}`), { rutasAsignadas: nuevas.length > 0 ? nuevas : null, rutaAsignada: rutaPrincipal ?? null })
+    setUsuarios(prev => prev.map(u => u.id === userId ? { ...u, rutasAsignadas: nuevas, rutaAsignada: rutaPrincipal } : u))
+  }
+
   async function handleAsignarParada(userId: string, paradaId: string) {
     setGuardandoId(userId)
     await update(ref(db, `usuarios/${userId}`), { paradaAsignada: paradaId })
@@ -234,12 +243,13 @@ export default function AdminUsuariosPage() {
       telefono: nuevoUsuario.telefono,
       orgId: ORG_DEMO,
       rol: 'chofer',
-      rutaAsignada: nuevoUsuario.rutaAsignada || undefined,
+      rutasAsignadas: nuevoUsuario.rutasAsignadas.length > 0 ? nuevoUsuario.rutasAsignadas : undefined,
+      rutaAsignada: nuevoUsuario.rutasAsignadas[0] || undefined,
       numeroUnidad: nuevoUsuario.numeroUnidad || undefined,
       creadoEn: Date.now(),
     })
     setMostrarModal(false)
-    setNuevoUsuario({ nombre: '', telefono: '+52', rol: 'chofer', rutaAsignada: '', paradaAsignada: '', numeroUnidad: '' })
+    setNuevoUsuario({ nombre: '', telefono: '+52', rol: 'chofer', rutaAsignada: '', paradaAsignada: '', numeroUnidad: '', rutasAsignadas: [] })
     await cargarDatos()
   }
 
@@ -392,7 +402,7 @@ export default function AdminUsuariosPage() {
           <div>
             <h1 className="font-bold">Usuarios</h1>
             <p className="text-teal-200 text-xs">
-              {vista === 'usuarios' ? `${usuariosFiltrados.length} registrados` : `${preregistros.length} preregistros`}
+              {vista === 'usuarios' ? `${usuariosFiltrados.length} registrados` : `${preregistros.filter(p => !p.vinculado).length} preregistros`}
             </p>
           </div>
         </div>
@@ -492,12 +502,12 @@ export default function AdminUsuariosPage() {
             {/* Lista preregistros */}
             {cargandoPreregistros ? (
               [1,2,3].map(i => <div key={i} className="h-16 bg-white rounded-2xl animate-pulse" />)
-            ) : preregistros.length === 0 ? (
+            ) : preregistros.filter(p => !p.vinculado).length === 0 ? (
               <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
                 <p className="text-2xl mb-2">📋</p>
                 <p className="text-gray-500 text-sm">Sin preregistros. Agrega números de empleado arriba.</p>
               </div>
-            ) : preregistros.map(pre => {
+            ) : preregistros.filter(pre => !pre.vinculado).map(pre => {
               const ruta = rutas.find(r => r.id === pre.rutaAsignada)
               return (
                 <div key={pre.empleadoId} className="bg-white rounded-2xl shadow-sm px-4 py-3 flex items-center justify-between">
@@ -619,6 +629,34 @@ export default function AdminUsuariosPage() {
 
                 {usuario.rol !== 'admin' && (
                   <div className="space-y-2">
+                    {/* Operador — múltiples rutas */}
+                    {usuario.rol === 'chofer' && (
+                      <div>
+                        <label className="text-xs text-gray-500 font-medium">Rutas asignadas</label>
+                        <div className="mt-1 border border-gray-200 rounded-xl overflow-hidden">
+                          {rutas.map(r => {
+                            const asignadas = usuario.rutasAsignadas ?? (usuario.rutaAsignada ? [usuario.rutaAsignada] : [])
+                            const checked = asignadas.includes(r.id)
+                            return (
+                              <label key={r.id} className={`flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50 border-b border-gray-100 last:border-0 ${checked ? 'bg-teal-50' : ''}`}>
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  disabled={guardando}
+                                  onChange={() => handleToggleRutaChofer(usuario.id, r.id, asignadas)}
+                                  className="accent-teal-600"
+                                />
+                                <span className="text-sm text-gray-800">{r.nombre} <span className="text-gray-400 text-xs">({r.turno})</span></span>
+                              </label>
+                            )
+                          })}
+                          {rutas.length === 0 && <p className="text-gray-400 text-xs px-3 py-2">Sin rutas</p>}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Trabajador — una sola ruta */}
+                    {usuario.rol === 'trabajador' && (
                     <div>
                       <label className="text-xs text-gray-500 font-medium">Ruta asignada</label>
                       <select
@@ -633,6 +671,7 @@ export default function AdminUsuariosPage() {
                         ))}
                       </select>
                     </div>
+                    )}
 
                     {usuario.rol === 'trabajador' && usuario.rutaAsignada && (
                       <div>
@@ -651,7 +690,12 @@ export default function AdminUsuariosPage() {
                       </div>
                     )}
 
-                    {rutaAsignada && (
+                    {usuario.rol === 'chofer' && (usuario.rutasAsignadas?.length ?? 0) > 0 && (
+                      <div className="bg-teal-50 rounded-xl px-3 py-2 text-xs text-teal-700">
+                        ✅ {(usuario.rutasAsignadas ?? []).map(id => rutas.find(r => r.id === id)?.nombre).filter(Boolean).join(' · ')}
+                      </div>
+                    )}
+                    {usuario.rol === 'trabajador' && rutaAsignada && (
                       <div className="bg-teal-50 rounded-xl px-3 py-2 text-xs text-teal-700">
                         ✅ {rutaAsignada.nombre}
                         {paradaAsignada && ` → ${paradaAsignada.nombre}`}
@@ -722,15 +766,29 @@ export default function AdminUsuariosPage() {
               className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
             <div>
-              <label className="text-xs text-gray-500 font-medium">Ruta asignada</label>
-              <select
-                value={nuevoUsuario.rutaAsignada}
-                onChange={e => setNuevoUsuario(p => ({ ...p, rutaAsignada: e.target.value }))}
-                className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-              >
-                <option value="">— Sin asignar —</option>
-                {rutas.map(r => <option key={r.id} value={r.id}>{r.nombre} ({r.turno})</option>)}
-              </select>
+              <label className="text-xs text-gray-500 font-medium">Rutas asignadas <span className="text-gray-400">(puede tener varias)</span></label>
+              <div className="mt-1 border border-gray-200 rounded-xl overflow-hidden">
+                {rutas.map(r => {
+                  const checked = nuevoUsuario.rutasAsignadas.includes(r.id)
+                  return (
+                    <label key={r.id} className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-gray-50 border-b border-gray-100 last:border-0 ${checked ? 'bg-teal-50' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => setNuevoUsuario(p => ({
+                          ...p,
+                          rutasAsignadas: checked
+                            ? p.rutasAsignadas.filter(id => id !== r.id)
+                            : [...p.rutasAsignadas, r.id]
+                        }))}
+                        className="accent-teal-600"
+                      />
+                      <span className="text-sm text-gray-800">{r.nombre} <span className="text-gray-400 text-xs">({r.turno})</span></span>
+                    </label>
+                  )
+                })}
+                {rutas.length === 0 && <p className="text-gray-400 text-sm px-3 py-2">No hay rutas creadas</p>}
+              </div>
             </div>
             <div className="flex gap-3 pt-2">
               <button onClick={() => setMostrarModal(false)} className="flex-1 py-3 border border-gray-200 rounded-xl text-gray-600">

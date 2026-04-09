@@ -73,8 +73,18 @@ export function WorkerRegistrationForm({ orgId }: WorkerRegistrationFormProps) {
       setConfirmation(result)
       setUltimoEnvio(Date.now())
       setPaso('codigo')
-    } catch {
-      setError('No se pudo enviar el SMS. Verifica el número.')
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code ?? ''
+      if (code === 'auth/too-many-requests') {
+        setError('Demasiados intentos. Espera unos minutos e intenta de nuevo.')
+      } else if (code === 'auth/invalid-phone-number') {
+        setError('Número inválido. Usa formato +52XXXXXXXXXX (10 dígitos).')
+      } else if (code === 'auth/captcha-check-failed' || code === 'auth/network-request-failed') {
+        setError('Error de red o reCAPTCHA. Abre la app en Chrome o Safari (no desde WhatsApp).')
+      } else {
+        setError(`No se pudo enviar el SMS. (${code || 'error desconocido'})`)
+      }
+      console.error('[SMS error]', err)
     } finally {
       setCargando(false)
     }
@@ -121,7 +131,7 @@ export function WorkerRegistrationForm({ orgId }: WorkerRegistrationFormProps) {
 
   return (
     <div className="w-full max-w-sm mx-auto">
-      <div id="recaptcha-container" />
+      <div id="recaptcha-container" className="flex justify-center" />
 
       {paso === 'empleado' && (
         <form onSubmit={handleValidarEmpleado} className="flex flex-col gap-4">

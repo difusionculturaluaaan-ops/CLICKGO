@@ -20,9 +20,11 @@ let recaptchaVerifier: RecaptchaVerifier | null = null
  */
 export function inicializarRecaptcha(): RecaptchaVerifier {
   if (recaptchaVerifier) return recaptchaVerifier
+  // 'normal' muestra checkbox en vez de invisible para evitar redirecciones en iOS Safari
   recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-    size: 'invisible',
+    size: 'normal',
     callback: () => {},
+    'expired-callback': () => { limpiarRecaptcha() },
   })
   return recaptchaVerifier
 }
