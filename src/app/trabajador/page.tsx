@@ -10,7 +10,7 @@ export default function TrabajadorPage() {
 
   useEffect(() => {
     if (!cargando && autenticado) {
-      router.replace('/trabajador/mapa')
+      window.location.href = '/trabajador/mapa'
     }
   }, [autenticado, cargando, router])
 

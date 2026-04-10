@@ -22,7 +22,8 @@
       "Bash(xargs grep:*)",
       "Bash(npx tsc:*)",
       "Read(//c/Users/image/.claude/projects/c--Users-image-Developer-software-clickgo/memory\" 2>/dev/**)",
-      "Read(//c/Users/image/.claude/projects/c--Users-image-Developer-software-clickgo/memory/**)"
+      "Read(//c/Users/image/.claude/projects/c--Users-image-Developer-software-clickgo/memory/**)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://sigo-55fff.firebaseapp.com/__/auth/handler\")"
     ]
   }
 }
