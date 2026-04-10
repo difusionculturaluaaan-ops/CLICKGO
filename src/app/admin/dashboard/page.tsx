@@ -153,6 +153,19 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {/* Mapa en vivo */}
+        <button
+          onClick={() => router.push('/admin/mapa')}
+          className="w-full bg-gray-800 rounded-2xl p-4 shadow-sm text-left hover:bg-gray-700 transition-colors flex items-center gap-4"
+        >
+          <span className="text-3xl">🗺️</span>
+          <div>
+            <p className="font-semibold text-white">Mapa en vivo</p>
+            <p className="text-gray-400 text-xs mt-0.5">Todas las rutas y camiones en tiempo real</p>
+          </div>
+          <span className="ml-auto text-gray-400 text-xl">→</span>
+        </button>
+
         {/* Acceso rápido al simulador */}
         <button
           onClick={() => router.push('/admin/simulador')}
