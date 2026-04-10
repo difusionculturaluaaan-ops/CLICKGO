@@ -45,9 +45,10 @@ export default function OperadorRutaPage() {
   const [logGPS, setLogGPS] = useState<LogEntry[]>([])
 
   const rutaId = usuario?.rutaAsignada ?? null
-  const presencia = usePresenciaEnParadas(usuario?.orgId ?? null)
+  const orgId = usuario?.orgId ?? ''
+  const presencia = usePresenciaEnParadas(orgId || null)
 
-  const { gps, iniciar, detener } = useGPSTransmitter(rutaId)
+  const { gps, iniciar, detener } = useGPSTransmitter(rutaId, orgId)
 
   // Arranca GPS después de que React actualice rutaActiva
   useEffect(() => {

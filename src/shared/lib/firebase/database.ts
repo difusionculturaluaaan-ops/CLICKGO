@@ -233,3 +233,42 @@ export async function obtenerHistorial(orgId: string): Promise<RegistroViaje[]> 
   return Object.values(snap.val() as Record<string, RegistroViaje>)
     .sort((a, b) => b.inicioReal - a.inicioReal)
 }
+
+// ─── Trail GPS (trayectoria real por viaje) ───────────────────────────────────
+
+export interface PuntoTrail {
+  lat: number
+  lng: number
+  speed: number
+  ts: number   // timestamp ms
+}
+
+/**
+ * Agrega un punto al trail GPS del viaje activo.
+ * Path: /trail/{orgId}/{fecha}/{rutaId}/{ts}
+ * Llamar cada 30 segundos mientras la ruta está activa.
+ */
+export function guardarPuntoTrail(
+  orgId: string,
+  rutaId: string,
+  punto: Omit<PuntoTrail, 'ts'>
+): Promise<void> {
+  const fecha = new Date().toISOString().split('T')[0]
+  const ts = Date.now()
+  return set(ref(db, `trail/${orgId}/${fecha}/${rutaId}/${ts}`), { ...punto, ts })
+}
+
+/**
+ * Obtiene el trail completo de una ruta en una fecha.
+ * Devuelve los puntos ordenados cronológicamente.
+ */
+export async function obtenerTrail(
+  orgId: string,
+  fecha: string,
+  rutaId: string
+): Promise<PuntoTrail[]> {
+  const snap = await get(ref(db, `trail/${orgId}/${fecha}/${rutaId}`))
+  if (!snap.exists()) return []
+  return Object.values(snap.val() as Record<string, PuntoTrail>)
+    .sort((a, b) => a.ts - b.ts)
+}

@@ -14,8 +14,6 @@ const MapaParadas = nextDynamic(() => import('@/features/routes/components/MapaP
   loading: () => <div className="w-full h-64 bg-gray-100 rounded-xl animate-pulse" />,
 })
 
-const ORG_DEMO = 'org-demo-001'
-
 const TURNO_LABELS: Record<Turno, string> = {
   matutino: '🌅 Matutino',
   vespertino: '🌆 Vespertino',
@@ -37,6 +35,7 @@ const RUTA_VACIA = { nombre: '', turno: 'matutino' as Turno, paradas: [] as Para
 export default function AdminRutasPage() {
   const { autenticado, usuario, cargando } = useAuth()
   const router = useRouter()
+  const orgId = usuario?.orgId ?? ''
   const [rutas, setRutas] = useState<Ruta[]>([])
   const [choferes, setChoferes] = useState<Usuario[]>([])
   const [choferPorRuta, setChoferPorRuta] = useState<Record<string, string>>({})
@@ -55,23 +54,23 @@ export default function AdminRutasPage() {
   const cargarRutas = useCallback(async () => {
     setCargandoRutas(true)
     const [data, snapUsuarios] = await Promise.all([
-      obtenerRutas(ORG_DEMO),
+      obtenerRutas(orgId),
       get(ref(db, 'usuarios')),
     ])
     setRutas(data)
     if (snapUsuarios.exists()) {
-      const todos = Object.values(snapUsuarios.val() as Record<string, Usuario>).filter(u => u.orgId === ORG_DEMO)
+      const todos = Object.values(snapUsuarios.val() as Record<string, Usuario>).filter(u => u.orgId === orgId)
       const mapa: Record<string, string> = {}
       todos.filter(u => u.rol === 'chofer' && u.rutaAsignada).forEach(u => { mapa[u.rutaAsignada!] = u.nombre })
       setChoferPorRuta(mapa)
       setChoferes(todos.filter(u => u.rol === 'chofer'))
     }
     setCargandoRutas(false)
-  }, [])
+  }, [orgId])
 
   useEffect(() => {
-    if (autenticado) cargarRutas()
-  }, [autenticado, cargarRutas])
+    if (orgId) cargarRutas()
+  }, [orgId, cargarRutas])
 
   async function handleGuardar() {
     if (!rutaActual.nombre?.trim()) return
@@ -85,12 +84,12 @@ export default function AdminRutasPage() {
         // Asignar nuevo chofer
         if (choferSeleccionado) await update(ref(db, `usuarios/${choferSeleccionado}`), { rutaAsignada: rutaActual.id })
       } else {
-        const nuevaId = await crearRuta(ORG_DEMO, {
+        const nuevaId = await crearRuta(orgId, {
           nombre: rutaActual.nombre!,
           turno: rutaActual.turno ?? 'matutino',
           paradas: rutaActual.paradas ?? [],
           estado: 'programada',
-          orgId: ORG_DEMO,
+          orgId: orgId,
         })
         if (choferSeleccionado && nuevaId) await update(ref(db, `usuarios/${choferSeleccionado}`), { rutaAsignada: nuevaId })
       }

@@ -1,12 +1,22 @@
 'use client'
 export const dynamic = 'force-dynamic'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+import nextDynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/features/auth/hooks/useAuth'
-import { obtenerHistorial } from '@/shared/lib/firebase/database'
-import type { RegistroViaje } from '@/shared/lib/firebase/database'
+import { obtenerHistorial, obtenerTrail, obtenerRuta } from '@/shared/lib/firebase/database'
+import type { RegistroViaje, PuntoTrail } from '@/shared/lib/firebase/database'
+import type { Parada } from '@/shared/types'
 
-const ORG_DEMO = 'org-demo-001'
+const TrailMapInner = nextDynamic(
+  () => import('./TrailMapInner').then(m => m.TrailMapInner),
+  { ssr: false, loading: () => <div className="h-[320px] flex items-center justify-center text-gray-400 text-sm">Cargando mapa…</div> }
+)
+
+interface TrailData {
+  trail: PuntoTrail[]
+  paradas: Parada[]
+}
 
 function BadgePuntualidad({ valor }: { valor: number }) {
   const color = valor >= 80 ? 'bg-green-100 text-green-700' : valor >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
@@ -30,9 +40,26 @@ function formatFecha(fecha: string) {
 export default function ReportesPage() {
   const { autenticado, usuario, cargando } = useAuth()
   const router = useRouter()
+  const orgId = usuario?.orgId ?? ''
   const [viajes, setViajes] = useState<RegistroViaje[]>([])
   const [cargandoDatos, setCargandoDatos] = useState(true)
   const [viajeAbierto, setViajeAbierto] = useState<string | null>(null)
+  const [trailData, setTrailData] = useState<Record<string, TrailData | 'loading' | 'empty'>>({})
+
+  const verRecorrido = useCallback(async (viaje: RegistroViaje) => {
+    if (trailData[viaje.id]) return
+    setTrailData(prev => ({ ...prev, [viaje.id]: 'loading' }))
+    const [trail, ruta] = await Promise.all([
+      obtenerTrail(orgId, viaje.fecha, viaje.rutaId),
+      obtenerRuta(viaje.rutaId),
+    ])
+    if (trail.length === 0 || !ruta) {
+      setTrailData(prev => ({ ...prev, [viaje.id]: 'empty' }))
+      return
+    }
+    const paradas = [...ruta.paradas].sort((a, b) => a.orden - b.orden)
+    setTrailData(prev => ({ ...prev, [viaje.id]: { trail, paradas } }))
+  }, [trailData])
 
   useEffect(() => {
     if (!cargando && (!autenticado || (usuario && usuario.rol !== 'admin' && usuario.rol !== 'superadmin'))) {
@@ -41,12 +68,12 @@ export default function ReportesPage() {
   }, [autenticado, usuario, cargando, router])
 
   useEffect(() => {
-    if (!autenticado) return
-    obtenerHistorial(ORG_DEMO).then(data => {
+    if (!orgId) return
+    obtenerHistorial(orgId).then(data => {
       setViajes(data)
       setCargandoDatos(false)
     })
-  }, [autenticado])
+  }, [orgId])
 
   if (cargando || !autenticado) {
     return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin" /></div>
@@ -161,7 +188,56 @@ export default function ReportesPage() {
 
                     {/* Detalle de paradas */}
                     {abierto && (
-                      <div className="border-t border-gray-100 px-4 py-3">
+                      <div className="border-t border-gray-100 px-4 py-3 space-y-3">
+
+                        {/* Resumen inicio / llegada */}
+                        {(() => {
+                          const paradaInicio = viaje.paradas[0]
+                          const paradaFin = viaje.paradas[viaje.paradas.length - 1]
+                          const retrasoInicio = paradaInicio
+                            ? Math.round((viaje.inicioReal - (() => { const [h,m] = paradaInicio.horaEstimada.split(':').map(Number); const base = new Date(viaje.inicioReal); base.setHours(h,m,0,0); return base.getTime() })()) / 60000)
+                            : null
+                          const retrasoFin = paradaFin
+                            ? Math.round((viaje.finReal - (() => { const [h,m] = paradaFin.horaEstimada.split(':').map(Number); const base = new Date(viaje.finReal); base.setHours(h,m,0,0); return base.getTime() })()) / 60000)
+                            : null
+                          const colorInicio = retrasoInicio === null ? 'text-gray-500' : retrasoInicio <= 3 ? 'text-green-600' : 'text-red-500'
+                          const colorFin = retrasoFin === null ? 'text-gray-500' : retrasoFin <= 3 ? 'text-green-600' : 'text-red-500'
+                          return (
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="bg-gray-50 rounded-xl p-3">
+                                <p className="text-xs text-gray-400 mb-1">Inicio de ruta</p>
+                                <p className={`text-lg font-bold ${colorInicio}`}>{formatHora(viaje.inicioReal)}</p>
+                                {paradaInicio && (
+                                  <p className="text-xs text-gray-400 mt-0.5">
+                                    Prog. {paradaInicio.horaEstimada}
+                                    {retrasoInicio !== null && retrasoInicio !== 0 && (
+                                      <span className={`ml-1 font-medium ${colorInicio}`}>
+                                        {retrasoInicio > 0 ? `+${retrasoInicio}min` : `${retrasoInicio}min`}
+                                      </span>
+                                    )}
+                                  </p>
+                                )}
+                                <p className="text-xs text-gray-300 mt-0.5 truncate">{paradaInicio?.nombre ?? '—'}</p>
+                              </div>
+                              <div className="bg-gray-50 rounded-xl p-3">
+                                <p className="text-xs text-gray-400 mb-1">Llegada a destino</p>
+                                <p className={`text-lg font-bold ${colorFin}`}>{formatHora(viaje.finReal)}</p>
+                                {paradaFin && (
+                                  <p className="text-xs text-gray-400 mt-0.5">
+                                    Prog. {paradaFin.horaEstimada}
+                                    {retrasoFin !== null && retrasoFin !== 0 && (
+                                      <span className={`ml-1 font-medium ${colorFin}`}>
+                                        {retrasoFin > 0 ? `+${retrasoFin}min` : `${retrasoFin}min`}
+                                      </span>
+                                    )}
+                                  </p>
+                                )}
+                                <p className="text-xs text-gray-300 mt-0.5 truncate">{paradaFin?.nombre ?? '—'}</p>
+                              </div>
+                            </div>
+                          )
+                        })()}
+
                         <div className="space-y-2">
                           {/* Encabezado tabla */}
                           <div className="grid grid-cols-4 text-xs text-gray-400 font-medium pb-1 border-b border-gray-100">
@@ -188,6 +264,36 @@ export default function ReportesPage() {
                             )
                           })}
                         </div>
+
+                        {/* Botón y mapa de recorrido real */}
+                        {(() => {
+                          const td = trailData[viaje.id]
+                          if (!td) {
+                            return (
+                              <button
+                                onClick={() => verRecorrido(viaje)}
+                                className="w-full py-2 rounded-xl text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                              >
+                                🗺️ Ver recorrido real
+                              </button>
+                            )
+                          }
+                          if (td === 'loading') {
+                            return (
+                              <div className="h-[320px] flex items-center justify-center">
+                                <div className="w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+                              </div>
+                            )
+                          }
+                          if (td === 'empty') {
+                            return (
+                              <div className="py-3 text-center text-sm text-gray-400">
+                                Sin datos GPS para este viaje
+                              </div>
+                            )
+                          }
+                          return <TrailMapInner trail={td.trail} paradas={td.paradas} />
+                        })()}
                       </div>
                     )}
                   </div>

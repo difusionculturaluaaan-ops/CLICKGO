@@ -5,8 +5,6 @@ import nextDynamic from 'next/dynamic'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useRutasActivas } from '@/features/admin/hooks/useRutasActivas'
 
-const ORG_DEMO = 'org-demo-001'
-
 // Centro default: Saltillo
 const DEFAULT_LAT = 25.4232
 const DEFAULT_LNG = -100.9963
@@ -23,7 +21,7 @@ const MapaAdmin = nextDynamic(() => import('./MapaAdminInner').then(m => m.MapaA
 export default function AdminMapaPage() {
   const { autenticado, usuario, cargando } = useAuth()
   const router = useRouter()
-  const { rutas, stats } = useRutasActivas(autenticado ? ORG_DEMO : null)
+  const { rutas, stats } = useRutasActivas(usuario?.orgId ?? null)
 
   useEffect(() => {
     if (!cargando && (!autenticado || (usuario && usuario.rol !== 'admin' && usuario.rol !== 'superadmin'))) {

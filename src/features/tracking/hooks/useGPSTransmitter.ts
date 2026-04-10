@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { escribirUbicacion, finalizarTransmision } from '@/shared/lib/firebase/database'
+import { escribirUbicacion, finalizarTransmision, guardarPuntoTrail } from '@/shared/lib/firebase/database'
 
 type EstadoTransmision = 'inactivo' | 'activo' | 'error' | 'sin_gps'
 
@@ -11,7 +11,9 @@ interface GPSState {
   error: string | null
 }
 
-export function useGPSTransmitter(rutaId: string | null, intervaloSegs = 12) {
+const TRAIL_INTERVALO_MS = 30_000  // muestra al historial cada 30s
+
+export function useGPSTransmitter(rutaId: string | null, orgId: string, intervaloSegs = 12) {
   const [gps, setGPS] = useState<GPSState>({
     estado: 'inactivo',
     ultimaUbicacion: null,
@@ -21,6 +23,7 @@ export function useGPSTransmitter(rutaId: string | null, intervaloSegs = 12) {
 
   const watchIdRef = useRef<number | null>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const trailIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const ultimaPosRef = useRef<GeolocationPosition | null>(null)
 
   const detener = useCallback(async () => {
@@ -31,6 +34,10 @@ export function useGPSTransmitter(rutaId: string | null, intervaloSegs = 12) {
     if (intervalRef.current) {
       clearInterval(intervalRef.current)
       intervalRef.current = null
+    }
+    if (trailIntervalRef.current) {
+      clearInterval(trailIntervalRef.current)
+      trailIntervalRef.current = null
     }
     if (rutaId) {
       await finalizarTransmision(rutaId)
@@ -55,6 +62,16 @@ export function useGPSTransmitter(rutaId: string | null, intervaloSegs = 12) {
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
     )
+
+    // Trail GPS — muestra al historial cada 30s
+    trailIntervalRef.current = setInterval(() => {
+      const pos = ultimaPosRef.current
+      if (!pos || !rutaId) return
+      const { latitude: lat, longitude: lng, speed } = pos.coords
+      guardarPuntoTrail(orgId, rutaId, {
+        lat, lng, speed: speed != null ? Math.round(speed * 3.6) : 0,
+      }).catch(() => {})
+    }, TRAIL_INTERVALO_MS)
 
     // Envía a Firebase cada N segundos
     intervalRef.current = setInterval(async () => {
@@ -83,7 +100,7 @@ export function useGPSTransmitter(rutaId: string | null, intervaloSegs = 12) {
         setGPS((prev) => ({ ...prev, estado: 'error', error: 'Error al enviar ubicación' }))
       }
     }, intervaloSegs * 1000)
-  }, [rutaId, intervaloSegs])
+  }, [rutaId, orgId, intervaloSegs])
 
   // Limpieza al desmontar
   useEffect(() => {

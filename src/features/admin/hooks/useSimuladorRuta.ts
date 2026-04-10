@@ -38,9 +38,8 @@ function horaConOffset(horaBase: string, offsetMinutos: number): string {
 
 const INTERVALO_MS = 800   // ms entre waypoints (más fluido)
 const PAUSA_EN_PARADA_MS = 2500
-const ORG_DEMO = 'org-demo-001'
 
-export function useSimuladorRuta(rutaId: string | null, paradas: Parada[], nombreRuta = '') {
+export function useSimuladorRuta(rutaId: string | null, paradas: Parada[], orgId: string, nombreRuta = '') {
   const [progreso, setProgreso] = useState<ProgresoSim>({
     estado: 'detenido',
     segmentoActual: 0,
@@ -190,7 +189,7 @@ export function useSimuladorRuta(rutaId: string | null, paradas: Parada[], nombr
         try {
           await guardarRegistroViaje({
             rutaId: rutaId ?? 'sin-ruta',
-            orgId: ORG_DEMO,
+            orgId,
             nombreRuta: nombreRuta || rutaId || 'sin-ruta',
             fecha: hoy,
             inicioReal: inicioRef.current,
@@ -205,7 +204,7 @@ export function useSimuladorRuta(rutaId: string | null, paradas: Parada[], nombr
     }
 
     await ejecutarSegmento(desdeSegmento)
-  }, [rutaId, paradas, nombreRuta])
+  }, [rutaId, paradas, orgId, nombreRuta])
 
   const reanudar = useCallback(() => {
     iniciar(progreso.segmentoActual)

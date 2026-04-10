@@ -13,8 +13,6 @@ const MapaTiempoReal = nextDynamic(
   { ssr: false, loading: () => <div className="w-full bg-gray-800 animate-pulse" style={{ height: '55vh' }} /> }
 )
 
-const ORG_FALLBACK = 'org-demo-001'
-
 export default function SimuladorPage() {
   const { autenticado, usuario, cargando } = useAuth()
   const router = useRouter()
@@ -25,13 +23,14 @@ export default function SimuladorPage() {
   const [cargandoRutas, setCargandoRutas] = useState(true)
   const [temaMapa, setTemaMapa] = useState<'oscuro' | 'claro'>('oscuro')
 
-  const orgId = usuario?.orgId ?? ORG_FALLBACK
+  const orgId = usuario?.orgId ?? ''
   const paradas = ruta?.paradas?.slice().sort((a, b) => a.orden - b.orden) ?? []
   const paradaDestino = paradas[paradas.length - 1]
 
   const { progreso, iniciar, detener, pausar, reanudar } = useSimuladorRuta(
     rutaId || null,
     paradas,
+    orgId,
     ruta?.nombre ?? ''
   )
 

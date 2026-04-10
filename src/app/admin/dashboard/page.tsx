@@ -8,9 +8,6 @@ import { usePresenciaEnParadas } from '@/features/tracking/hooks/usePresenciaEnP
 import { TarjetaRuta } from '@/features/admin/components/TarjetaRuta'
 import { cerrarSesion } from '@/shared/lib/firebase/auth'
 
-// Demo: org hardcodeada — en producción viene del perfil del admin
-const ORG_DEMO = 'org-demo-001'
-
 function StatCard({
   valor,
   label,
@@ -31,10 +28,8 @@ function StatCard({
 export default function DashboardPage() {
   const { autenticado, usuario, cargando } = useAuth()
   const router = useRouter()
-  const { rutas, stats, cargando: cargandoRutas } = useRutasActivas(
-    autenticado ? ORG_DEMO : null
-  )
-  const presencia = usePresenciaEnParadas(autenticado ? ORG_DEMO : null)
+  const { rutas, stats, cargando: cargandoRutas } = useRutasActivas(usuario?.orgId ?? null)
+  const presencia = usePresenciaEnParadas(usuario?.orgId ?? null)
   const totalConectados = Object.values(presencia).reduce((sum, p) => sum + p.count, 0)
   useEffect(() => {
     if (!cargando && (!autenticado || (usuario && usuario.rol !== 'admin' && usuario.rol !== 'superadmin'))) {

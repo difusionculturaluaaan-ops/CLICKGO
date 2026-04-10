@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { WorkerRegistrationForm } from '@/features/auth/components/WorkerRegistrationForm'
+import { DEFAULT_ORG_ID } from '@/shared/lib/org'
 
 export default function TrabajadorPage() {
   const { autenticado, cargando } = useAuth()
@@ -34,7 +35,7 @@ export default function TrabajadorPage() {
           <h1 className="text-2xl font-bold text-teal-900">App Trabajador</h1>
           <p className="text-teal-600 text-sm mt-1">ClickGo — Rastreo en tiempo real</p>
         </div>
-        <WorkerRegistrationForm orgId="org-demo-001" />
+        <WorkerRegistrationForm orgId={DEFAULT_ORG_ID} />
       </div>
     </div>
   )

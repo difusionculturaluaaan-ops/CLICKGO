@@ -9,8 +9,6 @@ import { obtenerRutas } from '@/features/routes/services/rutas.service'
 import type { Usuario, Ruta, Parada, Preregistro } from '@/shared/types'
 import { listarPreregistros, crearPreregistro, eliminarPreregistro } from '@/shared/lib/firebase/database'
 
-const ORG_DEMO = 'org-demo-001'
-
 // ─── Tipos para import ──────────────────────────────────────────────────────
 interface PreregistroImport {
   empleadoId: string
@@ -30,11 +28,13 @@ interface UsuarioImport {
 export default function AdminUsuariosPage() {
   const { autenticado, usuario, cargando } = useAuth()
   const router = useRouter()
+  const orgId = usuario?.orgId ?? ''
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [rutas, setRutas] = useState<Ruta[]>([])
   const [cargandoDatos, setCargandoDatos] = useState(true)
   const [vista, setVista] = useState<'usuarios' | 'preregistros'>('usuarios')
   const [filtro, setFiltro] = useState<'todos' | 'trabajador' | 'chofer'>('todos')
+  const [busqueda, setBusqueda] = useState('')
   const [guardandoId, setGuardandoId] = useState<string | null>(null)
   const [eliminandoId, setEliminandoId] = useState<string | null>(null)
   // Modal nuevo usuario (solo operadores)
@@ -66,28 +66,28 @@ export default function AdminUsuariosPage() {
     setCargandoDatos(true)
     const [snapUsuarios, rutasData] = await Promise.all([
       get(ref(db, 'usuarios')),
-      obtenerRutas(ORG_DEMO),
+      obtenerRutas(orgId),
     ])
     if (snapUsuarios.exists()) {
       const todos = Object.values(snapUsuarios.val() as Record<string, Usuario>)
-        .filter(u => u.orgId === ORG_DEMO)
+        .filter(u => u.orgId === orgId)
         .sort((a, b) => a.nombre.localeCompare(b.nombre))
       setUsuarios(todos)
     }
     setRutas(rutasData)
     setCargandoDatos(false)
-  }, [])
+  }, [orgId])
 
   useEffect(() => {
-    if (autenticado) cargarDatos()
-  }, [autenticado, cargarDatos])
+    if (orgId) cargarDatos()
+  }, [orgId, cargarDatos])
 
   const cargarPreregistros = useCallback(async () => {
     setCargandoPreregistros(true)
-    const lista = await listarPreregistros(ORG_DEMO)
+    const lista = await listarPreregistros(orgId)
     setPreregistros(lista.sort((a, b) => a.empleadoId.localeCompare(b.empleadoId)))
     setCargandoPreregistros(false)
-  }, [])
+  }, [orgId])
 
   useEffect(() => {
     if (autenticado && vista === 'preregistros') cargarPreregistros()
@@ -98,9 +98,9 @@ export default function AdminUsuariosPage() {
     const id = nuevoPreregistro.empleadoId.trim().toUpperCase()
     if (!id) return
     setGuardandoPreregistro(true)
-    await crearPreregistro(ORG_DEMO, {
+    await crearPreregistro(orgId, {
       empleadoId: id,
-      orgId: ORG_DEMO,
+      orgId: orgId,
       rutaAsignada: nuevoPreregistro.rutaAsignada || undefined,
       paradaAsignada: nuevoPreregistro.paradaAsignada || undefined,
       vinculado: false,
@@ -114,7 +114,7 @@ export default function AdminUsuariosPage() {
   async function handleEliminarPreregistro(empleadoId: string) {
     if (!confirm(`¿Eliminar preregistro ${empleadoId}?`)) return
     setEliminandoPreregistro(empleadoId)
-    await eliminarPreregistro(ORG_DEMO, empleadoId)
+    await eliminarPreregistro(orgId, empleadoId)
     setPreregistros(prev => prev.filter(p => p.empleadoId !== empleadoId))
     setEliminandoPreregistro(null)
   }
@@ -181,9 +181,9 @@ export default function AdminUsuariosPage() {
       const parada = ruta && fila.paradaNombre
         ? ruta.paradas?.find(p => p.nombre.toLowerCase() === fila.paradaNombre!.toLowerCase())
         : undefined
-      await crearPreregistro(ORG_DEMO, {
+      await crearPreregistro(orgId, {
         empleadoId: fila.empleadoId,
-        orgId: ORG_DEMO,
+        orgId: orgId,
         rutaAsignada: ruta?.id,
         paradaAsignada: parada?.id,
         vinculado: false,
@@ -241,7 +241,7 @@ export default function AdminUsuariosPage() {
       id,
       nombre: nuevoUsuario.nombre,
       telefono: nuevoUsuario.telefono,
-      orgId: ORG_DEMO,
+      orgId: orgId,
       rol: 'chofer',
       rutasAsignadas: nuevoUsuario.rutasAsignadas.length > 0 ? nuevoUsuario.rutasAsignadas : undefined,
       rutaAsignada: nuevoUsuario.rutasAsignadas[0] || undefined,
@@ -370,7 +370,7 @@ export default function AdminUsuariosPage() {
         id,
         nombre: fila.nombre,
         telefono: fila.telefono,
-        orgId: ORG_DEMO,
+        orgId: orgId,
         rol: fila.rol,
         rutaAsignada: rutaId,
         creadoEn: Date.now(),
@@ -384,7 +384,17 @@ export default function AdminUsuariosPage() {
     await cargarDatos()
   }
 
-  const usuariosFiltrados = usuarios.filter(u => filtro === 'todos' ? true : u.rol === filtro)
+  const q = busqueda.toLowerCase().trim()
+  const usuariosFiltrados = usuarios.filter(u => {
+    if (filtro !== 'todos' && u.rol !== filtro) return false
+    if (!q) return true
+    return (
+      u.nombre?.toLowerCase().includes(q) ||
+      u.telefono?.includes(q) ||
+      u.empleadoId?.toLowerCase().includes(q) ||
+      rutas.find(r => r.id === u.rutaAsignada)?.nombre.toLowerCase().includes(q)
+    )
+  })
 
   function getParadasDeRuta(rutaId: string): Parada[] {
     return rutas.find(r => r.id === rutaId)?.paradas ?? []
@@ -558,6 +568,18 @@ export default function AdminUsuariosPage() {
           </button>
         </div>
 
+        {/* Buscador */}
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+          <input
+            type="search"
+            placeholder="Buscar por nombre, teléfono, ID o ruta…"
+            value={busqueda}
+            onChange={e => setBusqueda(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
+          />
+        </div>
+
         {/* Filtros */}
         <div className="flex gap-2">
           {(['todos', 'trabajador', 'chofer'] as const).map(f => (
@@ -578,8 +600,9 @@ export default function AdminUsuariosPage() {
           [1,2,3].map(i => <div key={i} className="h-28 bg-white rounded-2xl animate-pulse" />)
         ) : usuariosFiltrados.length === 0 ? (
           <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
-            <p className="text-3xl mb-2">👥</p>
-            <p className="text-gray-500">No hay usuarios en esta categoría</p>
+            <p className="text-3xl mb-2">{q ? '🔍' : '👥'}</p>
+            <p className="text-gray-500">{q ? `Sin resultados para "${busqueda}"` : 'No hay usuarios en esta categoría'}</p>
+            {q && <button onClick={() => setBusqueda('')} className="mt-2 text-teal-600 text-sm underline">Limpiar búsqueda</button>}
           </div>
         ) : (
           usuariosFiltrados.map(usuario => {

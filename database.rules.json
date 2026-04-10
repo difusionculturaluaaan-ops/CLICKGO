@@ -22,24 +22,24 @@
     },
     "presencia": {
       "$orgId": {
-        ".read": "auth != null",
+        ".read": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId",
         "$rutaId": {
           "$paradaId": {
-            ".write": "auth != null"
+            ".write": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId"
           }
         }
       }
     },
     "esperando": {
-      "$paradaId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
+      "$orgId": {
+        ".read": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId",
+        ".write": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId"
       }
     },
     "historial": {
       "$orgId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
+        ".read": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId",
+        ".write": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId"
       }
     },
     "organizaciones": {
@@ -47,8 +47,14 @@
     },
     "preregistros": {
       "$orgId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
+        ".read": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId",
+        ".write": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId"
+      }
+    },
+    "trail": {
+      "$orgId": {
+        ".read": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId",
+        ".write": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId"
       }
     }
   }
