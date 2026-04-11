@@ -26,6 +26,9 @@ export function MapaAdminInner({ rutas, defaultLat, defaultLng }: MapaAdminInner
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return
 
+    const markers = markersRef.current
+    const paradas = paradasRef.current
+
     import('leaflet').then((L) => {
       if (!mapRef.current || mapInstanceRef.current) return
 
@@ -58,8 +61,8 @@ export function MapaAdminInner({ rutas, defaultLat, defaultLng }: MapaAdminInner
         m.remove()
         mapInstanceRef.current = null
         leafletRef.current = null
-        markersRef.current.clear()
-        paradasRef.current.clear()
+        markers.clear()
+        paradas.clear()
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -253,7 +256,7 @@ export function MapaAdminInner({ rutas, defaultLat, defaultLng }: MapaAdminInner
       )}
 
       {/* Leyenda lateral */}
-      <div className="absolute top-3 right-3 z-[1000] bg-gray-900/90 backdrop-blur rounded-2xl p-3 max-w-[200px] max-h-[80vh] overflow-y-auto shadow-xl">
+      <div className="absolute top-3 right-3 z-1000 bg-gray-900/90 backdrop-blur rounded-2xl p-3 max-w-[200px] max-h-[80vh] overflow-y-auto shadow-xl">
         <p className="text-gray-400 text-xs font-semibold mb-2 uppercase tracking-wide">Rutas</p>
         <div className="space-y-1.5">
           {rutas.map((ruta, idx) => {
