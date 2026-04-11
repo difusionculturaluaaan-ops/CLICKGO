@@ -14,7 +14,13 @@ export function useAuth() {
     const unsub = escucharSesion(async (user) => {
       setFirebaseUser(user)
       if (user) {
-        const perfil = await obtenerUsuario(user.uid)
+        let perfil = await obtenerUsuario(user.uid)
+        if (!perfil) {
+          // Primer registro: crearOActualizarUsuario puede no haber terminado aún.
+          // Esperar 1.5s y reintentar antes de asumir que no existe perfil.
+          await new Promise(r => setTimeout(r, 1500))
+          perfil = await obtenerUsuario(user.uid)
+        }
         setUsuario(perfil)
       } else {
         setUsuario(null)

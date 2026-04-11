@@ -104,8 +104,13 @@ export function WorkerRegistrationForm({ orgId }: WorkerRegistrationFormProps) {
       // Verificar si ya tiene perfil (cel registrado antes)
       const existente = await obtenerUsuario(user.uid)
       if (existente) {
-        // Ya registrado — actualizar empleadoId por si cambió
+        // Ya registrado — actualizar ruta/parada en caso de que el admin las haya cambiado
+        await crearOActualizarUsuario(user.uid, {
+          rutaAsignada: preregistro?.rutaAsignada,
+          paradaAsignada: preregistro?.paradaAsignada,
+        })
         await marcarPreregistroVinculado(orgId, empleadoId)
+        limpiarRecaptcha()
         return
       }
 

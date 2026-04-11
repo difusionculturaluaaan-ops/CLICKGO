@@ -24,10 +24,8 @@
     "presencia": {
       "$orgId": {
         ".read": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId",
-        "$rutaId": {
-          "$paradaId": {
-            ".write": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId"
-          }
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId"
         }
       }
     },
