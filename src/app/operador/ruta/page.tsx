@@ -34,7 +34,7 @@ export default function OperadorRutaPage() {
   const [bateria, setBateria] = useState<number | null>(null)
   const [errorReporte, setErrorReporte] = useState(false)
 
-  // Elapsed time
+  // Elapsed time — persiste en localStorage para sobrevivir recargas
   const inicioRutaRef = useRef<number | null>(null)
   const [tiempoElapsado, setTiempoElapsado] = useState('')
 
@@ -53,6 +53,17 @@ export default function OperadorRutaPage() {
   const presencia = usePresenciaEnParadas(orgId || null)
 
   const { gps, iniciar, detener } = useGPSTransmitter(rutaId, orgId)
+
+  // Recuperar inicio de ruta desde localStorage si hubo recarga en medio del viaje
+  useEffect(() => {
+    if (!rutaId) return
+    const guardado = localStorage.getItem(`clickgo_inicio_${rutaId}`)
+    if (guardado) {
+      inicioRutaRef.current = Number(guardado)
+      setRutaActiva(true)   // restablecer UI activa
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rutaId])
 
   // Arranca GPS después de que React actualice rutaActiva
   useEffect(() => {
@@ -128,7 +139,9 @@ export default function OperadorRutaPage() {
 
   async function handleIniciar() {
     if (!rutaId) return // sin ruta asignada, no iniciar
-    inicioRutaRef.current = Date.now()
+    const ahora = Date.now()
+    inicioRutaRef.current = ahora
+    localStorage.setItem(`clickgo_inicio_${rutaId}`, String(ahora))
     prevPosRef.current = null
     tiemposParadaRef.current = {}
     setDistanciaTotal(0)
@@ -179,6 +192,8 @@ export default function OperadorRutaPage() {
       }
     }
 
+    inicioRutaRef.current = null
+    localStorage.removeItem(`clickgo_inicio_${rutaId}`)
     setRutaActiva(false)
     // Resetear estado a programada para el día siguiente
     await actualizarEstadoRuta(rutaId, 'programada')
