@@ -32,6 +32,7 @@ export default function OperadorRutaPage() {
   const [rutaActiva, setRutaActiva] = useState(false)
   const [ruta, setRuta] = useState<Ruta | null>(null)
   const [bateria, setBateria] = useState<number | null>(null)
+  const [errorReporte, setErrorReporte] = useState(false)
 
   // Elapsed time
   const inicioRutaRef = useRef<number | null>(null)
@@ -126,20 +127,23 @@ export default function OperadorRutaPage() {
   }, [gps.contadorActualizaciones])
 
   async function handleIniciar() {
+    if (!rutaId) return // sin ruta asignada, no iniciar
     inicioRutaRef.current = Date.now()
     prevPosRef.current = null
     tiemposParadaRef.current = {}
     setDistanciaTotal(0)
     setLogGPS([])
     setRutaActiva(true)
-    await actualizarEstadoRuta(rutaId ?? 'ruta-demo-001', 'activa')
+    // Resetear a 'activa' (cubre el caso de ruta que quedó 'completada' el día anterior)
+    await actualizarEstadoRuta(rutaId, 'activa')
   }
 
   async function handleFinalizar() {
+    if (!rutaId) return
     const finReal = Date.now()
     const inicioReal = inicioRutaRef.current ?? finReal
     await detener()
-    await actualizarEstadoRuta(rutaId ?? 'ruta-demo-001', 'completada')
+    await actualizarEstadoRuta(rutaId, 'completada')
 
     // Guardar registro de viaje en historial
     if (ruta && orgId) {
@@ -159,19 +163,25 @@ export default function OperadorRutaPage() {
       const aTiempo = registroParadas.filter(p => p.minutosRetraso <= 3).length
       const puntualidad = paradasOrdenadas.length > 0 ? Math.round((aTiempo / paradasOrdenadas.length) * 100) : 100
       const fecha = new Date(inicioReal).toISOString().split('T')[0]
-      await guardarRegistroViaje({
-        rutaId: ruta.id,
-        orgId,
-        nombreRuta: ruta.nombre,
-        fecha,
-        inicioReal,
-        finReal,
-        paradas: registroParadas,
-        puntualidad,
-      }).catch(() => {})
+      try {
+        await guardarRegistroViaje({
+          rutaId: ruta.id,
+          orgId,
+          nombreRuta: ruta.nombre,
+          fecha,
+          inicioReal,
+          finReal,
+          paradas: registroParadas,
+          puntualidad,
+        })
+      } catch {
+        setErrorReporte(true)
+      }
     }
 
     setRutaActiva(false)
+    // Resetear estado a programada para el día siguiente
+    await actualizarEstadoRuta(rutaId, 'programada')
   }
 
   async function handleLogout() {
@@ -260,7 +270,8 @@ export default function OperadorRutaPage() {
         {!rutaActiva ? (
           <button
             onClick={handleIniciar}
-            className="w-full py-5 bg-teal-700 text-white text-xl font-bold rounded-2xl shadow-lg hover:bg-teal-800 active:scale-95 transition-all"
+            disabled={!rutaId}
+            className="w-full py-5 bg-teal-700 text-white text-xl font-bold rounded-2xl shadow-lg hover:bg-teal-800 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none"
           >
             🚌 INICIAR RUTA
           </button>
@@ -340,6 +351,14 @@ export default function OperadorRutaPage() {
                   )
                 })}
             </ol>
+          </div>
+        )}
+
+        {/* Alerta error al guardar reporte */}
+        {errorReporte && (
+          <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 flex items-center gap-2">
+            <span className="text-orange-500">⚠️</span>
+            <p className="text-orange-700 text-sm">No se pudo guardar el reporte del viaje. Avisa a tu supervisor.</p>
           </div>
         )}
 
