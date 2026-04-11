@@ -193,23 +193,6 @@ export default function DashboardPage() {
           })()}
         </div>
 
-        {/* Navegación rápida al resto de secciones */}
-        <div className="grid grid-cols-3 gap-2 pb-4">
-          {[
-            { label: 'Rutas',     icon: '🛣️',  path: '/admin/rutas' },
-            { label: 'Usuarios',  icon: '👷',  path: '/admin/usuarios' },
-            { label: 'Reportes',  icon: '📊',  path: '/admin/reportes' },
-          ].map(({ label, icon, path }) => (
-            <button
-              key={path}
-              onClick={() => router.push(path)}
-              className="bg-white rounded-2xl p-3 shadow-sm flex flex-col items-center gap-1 hover:bg-teal-50 active:bg-teal-100 transition-colors"
-            >
-              <span className="text-2xl">{icon}</span>
-              <span className="text-xs text-gray-600 font-medium">{label}</span>
-            </button>
-          ))}
-        </div>
 
       </main>
     </div>

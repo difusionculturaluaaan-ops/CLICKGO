@@ -2,11 +2,10 @@
 import { usePathname, useRouter } from 'next/navigation'
 
 const NAV = [
-  { href: '/admin/dashboard',  icon: '🏠', label: 'Inicio'      },
-  { href: '/admin/rutas',      icon: '🗺️',  label: 'Rutas'       },
-  { href: '/admin/usuarios',   icon: '👥',  label: 'Usuarios'    },
-  { href: '/admin/simulador',  icon: '🎬',  label: 'Simulador'   },
-  { href: '/admin/reportes',   icon: '📊',  label: 'Reportes'    },
+  { href: '/admin/dashboard',  icon: '🏠', label: 'Inicio'    },
+  { href: '/admin/rutas',      icon: '🛣️',  label: 'Rutas'     },
+  { href: '/admin/usuarios',   icon: '👷',  label: 'Usuarios'  },
+  { href: '/admin/reportes',   icon: '📊',  label: 'Reportes'  },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
