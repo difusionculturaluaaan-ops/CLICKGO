@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { ConfirmationResult } from 'firebase/auth'
 import { enviarCodigoSMS, confirmarCodigo, limpiarRecaptcha } from '@/shared/lib/firebase/auth'
 import { obtenerPreregistro, marcarPreregistroVinculado, crearOActualizarUsuario, obtenerUsuario } from '@/shared/lib/firebase/database'
@@ -25,13 +25,15 @@ export function WorkerRegistrationForm({ orgId }: WorkerRegistrationFormProps) {
   const [ultimoEnvio, setUltimoEnvio] = useState(0)
   const [cooldownSeg, setCooldownSeg] = useState(0)
 
-  useState(() => {
+  useEffect(() => {
+    if (ultimoEnvio === 0) return
     const interval = setInterval(() => {
       const restante = Math.ceil((ultimoEnvio + SMS_COOLDOWN_MS - Date.now()) / 1000)
-      setCooldownSeg(restante > 0 ? restante : 0)
-    }, 1000)
+      if (restante <= 0) { setCooldownSeg(0); clearInterval(interval); return }
+      setCooldownSeg(restante)
+    }, 500)
     return () => clearInterval(interval)
-  })
+  }, [ultimoEnvio])
 
   async function handleValidarEmpleado(e: React.FormEvent) {
     e.preventDefault()

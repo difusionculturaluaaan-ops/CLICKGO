@@ -1,7 +1,7 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { ConfirmationResult } from 'firebase/auth'
-import { enviarCodigoSMS, confirmarCodigo, sincronizarPerfilUsuario } from '@/shared/lib/firebase/auth'
+import { enviarCodigoSMS, confirmarCodigo, limpiarRecaptcha, sincronizarPerfilUsuario } from '@/shared/lib/firebase/auth'
 
 type Paso = 'telefono' | 'codigo'
 
@@ -23,14 +23,15 @@ export function PhoneLoginForm({ orgId, rol }: PhoneLoginFormProps) {
   const [ultimoEnvio, setUltimoEnvio] = useState(0)
   const [cooldownSeg, setCooldownSeg] = useState(0)
 
-  // Contador de cooldown visible
-  useState(() => {
+  useEffect(() => {
+    if (ultimoEnvio === 0) return
     const interval = setInterval(() => {
       const restante = Math.ceil((ultimoEnvio + SMS_COOLDOWN_MS - Date.now()) / 1000)
-      setCooldownSeg(restante > 0 ? restante : 0)
-    }, 1000)
+      if (restante <= 0) { setCooldownSeg(0); clearInterval(interval); return }
+      setCooldownSeg(restante)
+    }, 500)
     return () => clearInterval(interval)
-  })
+  }, [ultimoEnvio])
 
   async function handleEnviarCodigo(e: React.FormEvent) {
     e.preventDefault()
@@ -66,8 +67,8 @@ export function PhoneLoginForm({ orgId, rol }: PhoneLoginFormProps) {
     setCargando(true)
     try {
       const user = await confirmarCodigo(confirmation, codigo)
+      limpiarRecaptcha()
       await sincronizarPerfilUsuario(user, { orgId, rol })
-      // El redirect lo maneja el padre via useAuth
     } catch {
       setError('Código incorrecto. Intenta de nuevo.')
     } finally {
