@@ -7,7 +7,8 @@ import { db } from '@/shared/lib/firebase/config'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { obtenerRutas } from '@/features/routes/services/rutas.service'
 import type { Usuario, Ruta, Parada, Preregistro } from '@/shared/types'
-import { listarPreregistros, crearPreregistro, eliminarPreregistro } from '@/shared/lib/firebase/database'
+import { listarPreregistros, crearPreregistro, eliminarPreregistro, listarUnidades, guardarUnidad, actualizarUnidad, eliminarUnidad } from '@/shared/lib/firebase/database'
+import type { Unidad, EstadoUnidad } from '@/shared/lib/firebase/database'
 
 // ─── Tipos para import ──────────────────────────────────────────────────────
 interface PreregistroImport {
@@ -32,7 +33,7 @@ export default function AdminUsuariosPage() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [rutas, setRutas] = useState<Ruta[]>([])
   const [cargandoDatos, setCargandoDatos] = useState(true)
-  const [vista, setVista] = useState<'usuarios' | 'preregistros'>('usuarios')
+  const [vista, setVista] = useState<'usuarios' | 'preregistros' | 'unidades'>('usuarios')
   const [filtro, setFiltro] = useState<'todos' | 'trabajador' | 'chofer'>('todos')
   const [busqueda, setBusqueda] = useState('')
   const [guardandoId, setGuardandoId] = useState<string | null>(null)
@@ -55,6 +56,23 @@ export default function AdminUsuariosPage() {
   const [importando, setImportando] = useState(false)
   const [importResultado, setImportResultado] = useState<{ ok: number; errores: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // Unidades
+  const [unidades, setUnidades] = useState<Unidad[]>([])
+  const [cargandoUnidades, setCargandoUnidades] = useState(false)
+  const [unidadEditando, setUnidadEditando] = useState<Unidad | null>(null)
+  const [mostrarFormUnidad, setMostrarFormUnidad] = useState(false)
+  const UNIDAD_VACIA = { numero: '', placas: '', rutaAsignada: '', estado: 'operativa' as EstadoUnidad, observaciones: '' }
+  const [formUnidad, setFormUnidad] = useState(UNIDAD_VACIA)
+  const [guardandoUnidad, setGuardandoUnidad] = useState(false)
+  const [eliminandoUnidad, setEliminandoUnidad] = useState<string | null>(null)
+
+  const ESTADO_UNIDAD_LABELS: Record<EstadoUnidad, { label: string; color: string }> = {
+    operativa:    { label: 'Operativa',    color: 'bg-green-100 text-green-700' },
+    en_taller:    { label: 'En taller',    color: 'bg-yellow-100 text-yellow-700' },
+    mantenimiento:{ label: 'Mantenimiento',color: 'bg-blue-100 text-blue-700' },
+    accidente:    { label: 'Accidente',    color: 'bg-red-100 text-red-700' },
+    baja:         { label: 'Baja',         color: 'bg-gray-100 text-gray-500' },
+  }
 
   useEffect(() => {
     if (!cargando && (!autenticado || (usuario && usuario.rol !== 'admin' && usuario.rol !== 'superadmin'))) {
@@ -92,6 +110,55 @@ export default function AdminUsuariosPage() {
   useEffect(() => {
     if (autenticado && vista === 'preregistros') cargarPreregistros()
   }, [autenticado, vista, cargarPreregistros])
+
+  const cargarUnidades = useCallback(async () => {
+    setCargandoUnidades(true)
+    const data = await listarUnidades(orgId)
+    setUnidades(data)
+    setCargandoUnidades(false)
+  }, [orgId])
+
+  useEffect(() => {
+    if (orgId && vista === 'unidades') cargarUnidades()
+  }, [orgId, vista, cargarUnidades])
+
+  async function handleGuardarUnidad(e: React.FormEvent) {
+    e.preventDefault()
+    if (!formUnidad.numero.trim() || !formUnidad.placas.trim()) return
+    setGuardandoUnidad(true)
+    const datos = {
+      numero: formUnidad.numero.trim().toUpperCase(),
+      placas: formUnidad.placas.trim().toUpperCase(),
+      rutaAsignada: formUnidad.rutaAsignada || undefined,
+      estado: formUnidad.estado,
+      observaciones: formUnidad.observaciones.trim(),
+      creadoEn: unidadEditando?.creadoEn ?? Date.now(),
+    }
+    if (unidadEditando) {
+      await actualizarUnidad(orgId, { ...unidadEditando, ...datos })
+    } else {
+      await guardarUnidad(orgId, datos)
+    }
+    setFormUnidad(UNIDAD_VACIA)
+    setUnidadEditando(null)
+    setMostrarFormUnidad(false)
+    setGuardandoUnidad(false)
+    await cargarUnidades()
+  }
+
+  async function handleEliminarUnidad(id: string, numero: string) {
+    if (!confirm(`¿Eliminar unidad ${numero}?`)) return
+    setEliminandoUnidad(id)
+    await eliminarUnidad(orgId, id)
+    setUnidades(prev => prev.filter(u => u.id !== id))
+    setEliminandoUnidad(null)
+  }
+
+  function handleEditarUnidad(u: Unidad) {
+    setUnidadEditando(u)
+    setFormUnidad({ numero: u.numero, placas: u.placas, rutaAsignada: u.rutaAsignada ?? '', estado: u.estado, observaciones: u.observaciones })
+    setMostrarFormUnidad(true)
+  }
 
   async function handleAgregarPreregistro(e: React.FormEvent) {
     e.preventDefault()
@@ -412,7 +479,7 @@ export default function AdminUsuariosPage() {
           <div>
             <h1 className="font-bold">Usuarios</h1>
             <p className="text-teal-200 text-xs">
-              {vista === 'usuarios' ? `${usuariosFiltrados.length} registrados` : `${preregistros.filter(p => !p.vinculado).length} preregistros`}
+              {vista === 'usuarios' ? `${usuariosFiltrados.length} registrados` : vista === 'preregistros' ? `${preregistros.filter(p => !p.vinculado).length} preregistros` : `${unidades.length} unidades`}
             </p>
           </div>
         </div>
@@ -428,22 +495,36 @@ export default function AdminUsuariosPage() {
               </button>
             </>
           )}
+          {vista === 'unidades' && (
+            <button
+              onClick={() => { setFormUnidad(UNIDAD_VACIA); setUnidadEditando(null); setMostrarFormUnidad(true) }}
+              className="bg-white text-teal-700 px-3 py-1.5 rounded-xl text-sm font-medium"
+            >
+              + Unidad
+            </button>
+          )}
         </div>
       </header>
 
       {/* Toggle vista */}
-      <div className="bg-teal-800 px-4 pb-3 flex gap-2">
+      <div className="bg-teal-800 px-4 pb-3 flex gap-2 overflow-x-auto">
         <button
           onClick={() => setVista('usuarios')}
-          className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${vista === 'usuarios' ? 'bg-white text-teal-800' : 'text-teal-200'}`}
+          className={`shrink-0 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${vista === 'usuarios' ? 'bg-white text-teal-800' : 'text-teal-200'}`}
         >
           👥 Registrados
         </button>
         <button
           onClick={() => setVista('preregistros')}
-          className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${vista === 'preregistros' ? 'bg-white text-teal-800' : 'text-teal-200'}`}
+          className={`shrink-0 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${vista === 'preregistros' ? 'bg-white text-teal-800' : 'text-teal-200'}`}
         >
           📋 Preregistros
+        </button>
+        <button
+          onClick={() => setVista('unidades')}
+          className={`shrink-0 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${vista === 'unidades' ? 'bg-white text-teal-800' : 'text-teal-200'}`}
+        >
+          🚌 Unidades
         </button>
       </div>
 
@@ -761,6 +842,154 @@ export default function AdminUsuariosPage() {
                 {preImportando ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Importando...</> : `Confirmar ${preImportPreview.length}`}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Vista Unidades ───────────────────────────────────────────────── */}
+      {vista === 'unidades' && (
+        <div className="max-w-2xl mx-auto px-4 py-4 space-y-3">
+          {cargandoUnidades ? (
+            [1,2,3].map(i => <div key={i} className="h-24 bg-white rounded-2xl animate-pulse" />)
+          ) : unidades.length === 0 ? (
+            <div className="bg-white rounded-2xl p-10 text-center shadow-sm">
+              <p className="text-4xl mb-3">🚌</p>
+              <p className="text-gray-600 font-medium">Sin unidades registradas</p>
+              <p className="text-gray-400 text-sm mt-1">Usa el botón + Unidad para agregar la primera</p>
+            </div>
+          ) : (
+            unidades.map(u => {
+              const est = ESTADO_UNIDAD_LABELS[u.estado]
+              const ruta = rutas.find(r => r.id === u.rutaAsignada)
+              return (
+                <div key={u.id} className="bg-white rounded-2xl shadow-sm p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-bold text-gray-900 text-lg">{u.numero}</p>
+                        <span className="font-mono text-gray-500 text-sm">{u.placas}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${est.color}`}>{est.label}</span>
+                      </div>
+                      {ruta && (
+                        <p className="text-sm text-teal-700 mt-1">📍 {ruta.nombre}</p>
+                      )}
+                      {u.observaciones && (
+                        <p className="text-xs text-gray-400 mt-1 italic">"{u.observaciones}"</p>
+                      )}
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        onClick={() => handleEditarUnidad(u)}
+                        className="text-xs px-3 py-1.5 border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => handleEliminarUnidad(u.id, u.numero)}
+                        disabled={eliminandoUnidad === u.id}
+                        className="text-xs px-3 py-1.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 disabled:opacity-50"
+                      >
+                        {eliminandoUnidad === u.id ? '...' : 'Eliminar'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+      )}
+
+      {/* Modal formulario unidad */}
+      {mostrarFormUnidad && (
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <h2 className="font-bold text-gray-900 text-lg">{unidadEditando ? '✏️ Editar unidad' : '🚌 Nueva unidad'}</h2>
+
+            <form onSubmit={handleGuardarUnidad} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">N° de unidad *</label>
+                  <input
+                    required
+                    placeholder="U-12"
+                    value={formUnidad.numero}
+                    onChange={e => setFormUnidad(p => ({ ...p, numero: e.target.value }))}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 uppercase"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Placas *</label>
+                  <input
+                    required
+                    placeholder="ABC-123-X"
+                    value={formUnidad.placas}
+                    onChange={e => setFormUnidad(p => ({ ...p, placas: e.target.value.toUpperCase() }))}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 uppercase"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Ruta asignada</label>
+                <select
+                  value={formUnidad.rutaAsignada}
+                  onChange={e => setFormUnidad(p => ({ ...p, rutaAsignada: e.target.value }))}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                >
+                  <option value="">— Sin ruta —</option>
+                  {rutas.map(r => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-2">Estado</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(Object.keys(ESTADO_UNIDAD_LABELS) as EstadoUnidad[]).map(e => (
+                    <button
+                      key={e}
+                      type="button"
+                      onClick={() => setFormUnidad(p => ({ ...p, estado: e }))}
+                      className={`py-2 px-3 rounded-xl text-sm font-medium border text-left transition-colors ${
+                        formUnidad.estado === e
+                          ? `${ESTADO_UNIDAD_LABELS[e].color} border-current`
+                          : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      {ESTADO_UNIDAD_LABELS[e].label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Observaciones</label>
+                <textarea
+                  rows={3}
+                  placeholder="Ej: En taller por frenos, accidente menor, pendiente verificación..."
+                  value={formUnidad.observaciones}
+                  onChange={e => setFormUnidad(p => ({ ...p, observaciones: e.target.value }))}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => { setMostrarFormUnidad(false); setUnidadEditando(null) }}
+                  className="flex-1 py-3 border border-gray-200 rounded-xl text-gray-600 text-sm"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={guardandoUnidad}
+                  className="flex-1 py-3 bg-teal-700 text-white rounded-xl font-medium text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {guardandoUnidad ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Guardando...</> : unidadEditando ? 'Guardar cambios' : 'Agregar unidad'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

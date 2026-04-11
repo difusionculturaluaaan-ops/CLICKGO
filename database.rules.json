@@ -56,6 +56,12 @@
         ".read": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId",
         ".write": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId"
       }
+    },
+    "unidades": {
+      "$orgId": {
+        ".read": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId",
+        ".write": "auth != null && root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId"
+      }
     }
   }
 }

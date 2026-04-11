@@ -258,6 +258,41 @@ export function guardarPuntoTrail(
   return set(ref(db, `trail/${orgId}/${fecha}/${rutaId}/${ts}`), { ...punto, ts })
 }
 
+// ─── Unidades (flota) ────────────────────────────────────────────────────────
+
+export type EstadoUnidad = 'operativa' | 'en_taller' | 'accidente' | 'mantenimiento' | 'baja'
+
+export interface Unidad {
+  id: string
+  numero: string          // "U-12"
+  placas: string          // "ABC-123-X"
+  rutaAsignada?: string   // rutaId
+  estado: EstadoUnidad
+  observaciones: string
+  creadoEn: number
+}
+
+export async function listarUnidades(orgId: string): Promise<Unidad[]> {
+  const snap = await get(ref(db, `unidades/${orgId}`))
+  if (!snap.exists()) return []
+  return Object.values(snap.val() as Record<string, Unidad>)
+    .sort((a, b) => a.numero.localeCompare(b.numero, undefined, { numeric: true }))
+}
+
+export async function guardarUnidad(orgId: string, unidad: Omit<Unidad, 'id'>): Promise<string> {
+  const newRef = push(ref(db, `unidades/${orgId}`))
+  await set(newRef, { ...unidad, id: newRef.key })
+  return newRef.key!
+}
+
+export async function actualizarUnidad(orgId: string, unidad: Unidad): Promise<void> {
+  await update(ref(db, `unidades/${orgId}/${unidad.id}`), unidad)
+}
+
+export async function eliminarUnidad(orgId: string, unidadId: string): Promise<void> {
+  await remove(ref(db, `unidades/${orgId}/${unidadId}`))
+}
+
 /**
  * Obtiene el trail completo de una ruta en una fecha.
  * Devuelve los puntos ordenados cronológicamente.
