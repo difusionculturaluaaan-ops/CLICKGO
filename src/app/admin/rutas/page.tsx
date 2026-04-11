@@ -42,6 +42,7 @@ export default function AdminRutasPage() {
   const [choferSeleccionado, setChoferSeleccionado] = useState<string>('')
   const [cargandoRutas, setCargandoRutas] = useState(true)
   const [vista, setVista] = useState<Vista>('lista')
+  const [busqueda, setBusqueda] = useState('')
   const [rutaActual, setRutaActual] = useState<Partial<Ruta>>(RUTA_VACIA)
   const [guardando, setGuardando] = useState(false)
 
@@ -146,6 +147,18 @@ export default function AdminRutasPage() {
         {/* Lista de rutas */}
         {vista === 'lista' && (
           <div className="space-y-3">
+            {!cargandoRutas && rutas.length > 0 && (
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+                <input
+                  type="search"
+                  placeholder="Buscar por nombre, turno, unidad o placas…"
+                  value={busqueda}
+                  onChange={e => setBusqueda(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
+            )}
             {cargandoRutas ? (
               [1,2,3].map(i => <div key={i} className="h-24 bg-white rounded-2xl animate-pulse" />)
             ) : rutas.length === 0 ? (
@@ -159,8 +172,23 @@ export default function AdminRutasPage() {
                   Crear primera ruta
                 </button>
               </div>
-            ) : (
-              rutas.map((ruta) => (
+            ) : (() => {
+              const q = busqueda.toLowerCase().trim()
+              const filtradas = q
+                ? rutas.filter(r =>
+                    r.nombre.toLowerCase().includes(q) ||
+                    r.turno.includes(q) ||
+                    r.unidad?.toLowerCase().includes(q) ||
+                    r.placas?.toLowerCase().includes(q)
+                  )
+                : rutas
+              if (filtradas.length === 0) return (
+                <div className="bg-white rounded-2xl p-6 text-center shadow-sm">
+                  <p className="text-gray-400 text-sm">Sin resultados para &ldquo;{busqueda}&rdquo;</p>
+                  <button onClick={() => setBusqueda('')} className="mt-2 text-teal-600 text-sm underline">Limpiar</button>
+                </div>
+              )
+              return filtradas.map((ruta) => (
                 <div key={ruta.id} className="bg-white rounded-2xl shadow-sm p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -208,7 +236,7 @@ export default function AdminRutasPage() {
                   )}
                 </div>
               ))
-            )}
+            })()}
           </div>
         )}
 

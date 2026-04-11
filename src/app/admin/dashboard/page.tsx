@@ -1,6 +1,6 @@
 'use client'
 export const dynamic = 'force-dynamic'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useRutasActivas } from '@/features/admin/hooks/useRutasActivas'
@@ -31,6 +31,7 @@ export default function DashboardPage() {
   const { rutas, stats, cargando: cargandoRutas } = useRutasActivas(usuario?.orgId ?? null)
   const presencia = usePresenciaEnParadas(usuario?.orgId ?? null)
   const totalConectados = Object.values(presencia).reduce((sum, p) => sum + p.count, 0)
+  const [busqueda, setBusqueda] = useState('')
   useEffect(() => {
     if (!cargando && (!autenticado || (usuario && usuario.rol !== 'admin' && usuario.rol !== 'superadmin'))) {
       router.replace('/admin')
@@ -125,6 +126,19 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          {!cargandoRutas && rutas.length > 0 && (
+            <div className="relative mb-3">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+              <input
+                type="search"
+                placeholder="Buscar ruta…"
+                value={busqueda}
+                onChange={e => setBusqueda(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+            </div>
+          )}
+
           {cargandoRutas ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
@@ -139,13 +153,22 @@ export default function DashboardPage() {
                 Ve a <strong>Rutas</strong> para crear las rutas del servicio
               </p>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {rutas.map((ruta) => (
-                <TarjetaRuta key={ruta.id} ruta={ruta} />
-              ))}
-            </div>
-          )}
+          ) : (() => {
+            const q = busqueda.toLowerCase().trim()
+            const filtradas = q ? rutas.filter(r => r.nombre.toLowerCase().includes(q)) : rutas
+            return filtradas.length === 0 ? (
+              <div className="bg-white rounded-2xl p-6 text-center shadow-sm">
+                <p className="text-gray-400 text-sm">Sin rutas para &ldquo;{busqueda}&rdquo;</p>
+                <button onClick={() => setBusqueda('')} className="mt-2 text-teal-600 text-sm underline">Limpiar</button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filtradas.map((ruta) => (
+                  <TarjetaRuta key={ruta.id} ruta={ruta} />
+                ))}
+              </div>
+            )
+          })()}
         </div>
 
         {/* Mapa en vivo */}

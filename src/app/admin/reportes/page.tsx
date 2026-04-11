@@ -45,6 +45,7 @@ export default function ReportesPage() {
   const [cargandoDatos, setCargandoDatos] = useState(true)
   const [viajeAbierto, setViajeAbierto] = useState<string | null>(null)
   const [trailData, setTrailData] = useState<Record<string, TrailData | 'loading' | 'empty'>>({})
+  const [busqueda, setBusqueda] = useState('')
 
   const verRecorrido = useCallback(async (viaje: RegistroViaje) => {
     if (trailData[viaje.id]) return
@@ -146,7 +147,25 @@ export default function ReportesPage() {
 
         {/* Lista de viajes */}
         <div>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Historial de viajes</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Historial de viajes</h2>
+            {!cargandoDatos && viajes.length > 0 && (
+              <span className="text-xs text-gray-400">{viajes.length} viajes</span>
+            )}
+          </div>
+
+          {!cargandoDatos && viajes.length > 0 && (
+            <div className="relative mb-3">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+              <input
+                type="search"
+                placeholder="Buscar por ruta o fecha…"
+                value={busqueda}
+                onChange={e => setBusqueda(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+            </div>
+          )}
 
           {cargandoDatos ? (
             [1,2,3].map(i => <div key={i} className="h-20 bg-white rounded-2xl animate-pulse mb-3" />)
@@ -162,9 +181,25 @@ export default function ReportesPage() {
                 para generar el primer reporte
               </p>
             </div>
-          ) : (
+          ) : (() => {
+            const q = busqueda.toLowerCase().trim()
+            const viajesFiltrados = q
+              ? viajes.filter(v =>
+                  v.nombreRuta.toLowerCase().includes(q) ||
+                  v.fecha.includes(q) ||
+                  formatFecha(v.fecha).toLowerCase().includes(q)
+                )
+              : viajes
+            if (viajesFiltrados.length === 0) return (
+              <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
+                <p className="text-3xl mb-2">🔍</p>
+                <p className="text-gray-500 text-sm">Sin resultados para &ldquo;{busqueda}&rdquo;</p>
+                <button onClick={() => setBusqueda('')} className="mt-2 text-teal-600 text-sm underline">Limpiar búsqueda</button>
+              </div>
+            )
+            return (
             <div className="space-y-3">
-              {viajes.map(viaje => {
+              {viajesFiltrados.map(viaje => {
                 const abierto = viajeAbierto === viaje.id
                 const duracionMin = Math.round((viaje.finReal - viaje.inicioReal) / 60000)
                 return (
@@ -300,7 +335,8 @@ export default function ReportesPage() {
                 )
               })}
             </div>
-          )}
+            )
+          })()}
         </div>
       </main>
     </div>
