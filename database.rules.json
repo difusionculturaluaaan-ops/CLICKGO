@@ -15,6 +15,7 @@
       }
     },
     "ubicaciones": {
+      ".read": "auth != null",
       "$rutaId": {
         ".read": "auth != null",
         ".write": "auth != null"
