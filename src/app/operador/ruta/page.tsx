@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useGPSTransmitter } from '@/features/tracking/hooks/useGPSTransmitter'
-import { actualizarEstadoRuta, obtenerRuta } from '@/shared/lib/firebase/database'
+import { actualizarEstadoRuta, obtenerRuta, guardarRegistroViaje } from '@/shared/lib/firebase/database'
 import { usePresenciaEnParadas } from '@/features/tracking/hooks/usePresenciaEnParadas'
 import { cerrarSesion } from '@/shared/lib/firebase/auth'
 import type { Ruta } from '@/shared/types'
@@ -43,6 +43,9 @@ export default function OperadorRutaPage() {
 
   // Real-time GPS log (últimas 5)
   const [logGPS, setLogGPS] = useState<LogEntry[]>([])
+
+  // Registro de tiempos reales por parada (paradaId → timestamp ms)
+  const tiemposParadaRef = useRef<Record<string, number>>({})
 
   const rutaId = usuario?.rutaAsignada ?? null
   const orgId = usuario?.orgId ?? ''
@@ -92,7 +95,7 @@ export default function OperadorRutaPage() {
     return () => clearInterval(interval)
   }, [rutaActiva])
 
-  // Distance + log on each GPS update
+  // Distance + log + proximidad a paradas on each GPS update
   useEffect(() => {
     const ub = gps.ultimaUbicacion
     if (!ub || !rutaActiva) return
@@ -104,6 +107,18 @@ export default function OperadorRutaPage() {
     }
     prevPosRef.current = { lat: ub.lat, lng: ub.lng }
 
+    // Detectar proximidad a cada parada (150m de radio, solo la primera vez)
+    if (ruta?.paradas) {
+      const ahora = Date.now()
+      for (const parada of ruta.paradas) {
+        if (tiemposParadaRef.current[parada.id]) continue // ya registrada
+        const dist = haversine(ub.lat, ub.lng, parada.lat, parada.lng)
+        if (dist <= 150) {
+          tiemposParadaRef.current[parada.id] = ahora
+        }
+      }
+    }
+
     // Log
     const hora = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     setLogGPS((prev) => [{ hora, lat: ub.lat, lng: ub.lng, speed: ub.speed }, ...prev].slice(0, 5))
@@ -113,6 +128,7 @@ export default function OperadorRutaPage() {
   async function handleIniciar() {
     inicioRutaRef.current = Date.now()
     prevPosRef.current = null
+    tiemposParadaRef.current = {}
     setDistanciaTotal(0)
     setLogGPS([])
     setRutaActiva(true)
@@ -120,8 +136,41 @@ export default function OperadorRutaPage() {
   }
 
   async function handleFinalizar() {
+    const finReal = Date.now()
+    const inicioReal = inicioRutaRef.current ?? finReal
     await detener()
     await actualizarEstadoRuta(rutaId ?? 'ruta-demo-001', 'completada')
+
+    // Guardar registro de viaje en historial
+    if (ruta && orgId) {
+      const paradasOrdenadas = [...(ruta.paradas ?? [])].sort((a, b) => a.orden - b.orden)
+      const registroParadas = paradasOrdenadas.map(p => {
+        const tsReal = tiemposParadaRef.current[p.id] ?? finReal
+        const horaReal = new Date(tsReal).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
+        let minutosRetraso = 0
+        if (p.horaEstimada) {
+          const [h, m] = p.horaEstimada.split(':').map(Number)
+          const base = new Date(tsReal)
+          base.setHours(h, m, 0, 0)
+          minutosRetraso = Math.round((tsReal - base.getTime()) / 60000)
+        }
+        return { paradaId: p.id, nombre: p.nombre, horaEstimada: p.horaEstimada ?? '', horaReal, minutosRetraso }
+      })
+      const aTiempo = registroParadas.filter(p => p.minutosRetraso <= 3).length
+      const puntualidad = paradasOrdenadas.length > 0 ? Math.round((aTiempo / paradasOrdenadas.length) * 100) : 100
+      const fecha = new Date(inicioReal).toISOString().split('T')[0]
+      await guardarRegistroViaje({
+        rutaId: ruta.id,
+        orgId,
+        nombreRuta: ruta.nombre,
+        fecha,
+        inicioReal,
+        finReal,
+        paradas: registroParadas,
+        puntualidad,
+      }).catch(() => {})
+    }
+
     setRutaActiva(false)
   }
 

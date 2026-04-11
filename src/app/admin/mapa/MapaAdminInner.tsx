@@ -17,6 +17,7 @@ interface MapaAdminInnerProps {
 export function MapaAdminInner({ rutas, defaultLat, defaultLng }: MapaAdminInnerProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<unknown>(null)
+  const leafletRef = useRef<unknown>(null)
   const markersRef = useRef<Map<string, unknown>>(new Map())
   const paradasRef = useRef<Map<string, unknown[]>>(new Map())
   const [rutaSeleccionada, setRutaSeleccionada] = useState<string | null>(null)
@@ -35,6 +36,7 @@ export function MapaAdminInner({ rutas, defaultLat, defaultLng }: MapaAdminInner
       const map = L.map(mapRef.current, { zoomControl: true })
       map.setView([defaultLat, defaultLng], 13)
       mapInstanceRef.current = map
+      leafletRef.current = L
 
       L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; OSM &copy; CARTO',
@@ -55,6 +57,7 @@ export function MapaAdminInner({ rutas, defaultLat, defaultLng }: MapaAdminInner
         m._ro?.disconnect()
         m.remove()
         mapInstanceRef.current = null
+        leafletRef.current = null
         markersRef.current.clear()
         paradasRef.current.clear()
       }
@@ -72,6 +75,7 @@ export function MapaAdminInner({ rutas, defaultLat, defaultLng }: MapaAdminInner
       rutas.forEach((ruta, idx) => {
         const color = COLORES[idx % COLORES.length]
         const { ubicacion } = ruta
+        const visible = !rutaSeleccionada || ruta.id === rutaSeleccionada
 
         // ── Paradas (solo si no las dibujamos antes) ──
         if (!paradasRef.current.has(ruta.id) && ruta.paradas?.length) {
@@ -84,8 +88,8 @@ export function MapaAdminInner({ rutas, defaultLat, defaultLng }: MapaAdminInner
               iconAnchor: [5, 5],
             })
             const m = L.marker([p.lat, p.lng], { icon })
-              .addTo(map)
               .bindPopup(`<b style="color:${color}">${ruta.nombre}</b><br>📍 ${p.nombre}`)
+            if (visible) m.addTo(map)
             paradaMarkers.push(m)
           })
           paradasRef.current.set(ruta.id, paradaMarkers)
@@ -93,7 +97,6 @@ export function MapaAdminInner({ rutas, defaultLat, defaultLng }: MapaAdminInner
 
         // ── Camión ──
         if (!ubicacion?.active) {
-          // Sin señal activa — remover marcador si existía
           if (markersRef.current.has(ruta.id)) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ;(markersRef.current.get(ruta.id) as any).remove()
@@ -133,13 +136,13 @@ export function MapaAdminInner({ rutas, defaultLat, defaultLng }: MapaAdminInner
           marker.setPopupContent(popupContent)
         } else {
           const marker = L.marker([ubicacion.lat, ubicacion.lng], { icon })
-            .addTo(map)
             .bindPopup(popupContent)
+          if (visible) marker.addTo(map)
           markersRef.current.set(ruta.id, marker)
         }
       })
 
-      // Si hay camiones activos y no hay ruta seleccionada, centrar en todos
+      // Auto-centrar solo si no hay ruta seleccionada
       const activos = rutas.filter(r => r.ubicacion?.active)
       if (activos.length > 0 && !rutaSeleccionada) {
         const lats = activos.map(r => r.ubicacion!.lat)
@@ -156,26 +159,98 @@ export function MapaAdminInner({ rutas, defaultLat, defaultLng }: MapaAdminInner
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rutas])
 
-  // Centrar en ruta seleccionada
+  // Filtrar visibilidad al cambiar ruta seleccionada
   useEffect(() => {
-    if (!rutaSeleccionada || !mapInstanceRef.current) return
-    const ruta = rutas.find(r => r.id === rutaSeleccionada)
-    if (!ruta?.ubicacion?.active) return
-    import('leaflet').then((L) => {
-      const map = mapInstanceRef.current as ReturnType<typeof L.map>
-      map.setView([ruta.ubicacion!.lat, ruta.ubicacion!.lng], 15)
-      const marker = markersRef.current.get(rutaSeleccionada)
-      if (marker) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ;(marker as any).openPopup()
+    if (!mapInstanceRef.current || !leafletRef.current) return
+    const L = leafletRef.current as typeof import('leaflet')
+    const map = mapInstanceRef.current as ReturnType<typeof L.map>
+
+    // Mostrar/ocultar camiones
+    markersRef.current.forEach((marker, rutaId) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const m = marker as any
+      if (!rutaSeleccionada || rutaId === rutaSeleccionada) {
+        if (!map.hasLayer(m)) map.addLayer(m)
+      } else {
+        if (map.hasLayer(m)) map.removeLayer(m)
       }
     })
+
+    // Mostrar/ocultar paradas
+    paradasRef.current.forEach((markers, rutaId) => {
+      markers.forEach((marker) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const m = marker as any
+        if (!rutaSeleccionada || rutaId === rutaSeleccionada) {
+          if (!map.hasLayer(m)) map.addLayer(m)
+        } else {
+          if (map.hasLayer(m)) map.removeLayer(m)
+        }
+      })
+    })
+
+    // Centrar en la ruta seleccionada
+    if (rutaSeleccionada) {
+      const ruta = rutas.find(r => r.id === rutaSeleccionada)
+      if (ruta?.ubicacion?.active) {
+        map.setView([ruta.ubicacion.lat, ruta.ubicacion.lng], 15)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const marker = markersRef.current.get(rutaSeleccionada) as any
+        if (marker) marker.openPopup()
+      } else if (ruta?.paradas?.length) {
+        const bounds = L.latLngBounds(ruta.paradas.map(p => [p.lat, p.lng] as [number, number]))
+        map.fitBounds(bounds, { padding: [60, 60] })
+      }
+    } else {
+      // Ver todo — centrar en camiones activos
+      const activos = rutas.filter(r => r.ubicacion?.active)
+      if (activos.length > 0) {
+        const lats = activos.map(r => r.ubicacion!.lat)
+        const lngs = activos.map(r => r.ubicacion!.lng)
+        if (lats.length === 1) {
+          map.setView([lats[0], lngs[0]], 14)
+        } else {
+          map.fitBounds(
+            [[Math.min(...lats), Math.min(...lngs)], [Math.max(...lats), Math.max(...lngs)]],
+            { padding: [60, 60] }
+          )
+        }
+      }
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rutaSeleccionada])
+
+  const rutaActiva = rutas.find(r => r.id === rutaSeleccionada)
 
   return (
     <>
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+      {/* Banner de ruta seleccionada */}
+      {rutaSeleccionada && rutaActiva && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-1000 bg-gray-900/95 backdrop-blur
+          rounded-2xl px-4 py-2 shadow-xl flex items-center gap-3">
+          <span
+            className="w-3 h-3 rounded-full shrink-0"
+            style={{
+              background: COLORES[rutas.findIndex(r => r.id === rutaSeleccionada) % COLORES.length],
+              boxShadow: `0 0 8px ${COLORES[rutas.findIndex(r => r.id === rutaSeleccionada) % COLORES.length]}`,
+            }}
+          />
+          <span className="text-white text-sm font-semibold">{rutaActiva.nombre}</span>
+          {rutaActiva.ubicacion?.active && (
+            <span className="text-green-400 text-xs">
+              {rutaActiva.ubicacion.speed?.toFixed(0) ?? '0'} km/h
+            </span>
+          )}
+          <button
+            onClick={() => setRutaSeleccionada(null)}
+            className="ml-2 text-gray-400 hover:text-white text-xs px-2 py-0.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+          >
+            Ver todo
+          </button>
+        </div>
+      )}
 
       {/* Leyenda lateral */}
       <div className="absolute top-3 right-3 z-[1000] bg-gray-900/90 backdrop-blur rounded-2xl p-3 max-w-[200px] max-h-[80vh] overflow-y-auto shadow-xl">
@@ -184,12 +259,17 @@ export function MapaAdminInner({ rutas, defaultLat, defaultLng }: MapaAdminInner
           {rutas.map((ruta, idx) => {
             const color = COLORES[idx % COLORES.length]
             const activo = !!ruta.ubicacion?.active
+            const seleccionada = rutaSeleccionada === ruta.id
             return (
               <button
                 key={ruta.id}
-                onClick={() => setRutaSeleccionada(ruta.id === rutaSeleccionada ? null : ruta.id)}
+                onClick={() => setRutaSeleccionada(seleccionada ? null : ruta.id)}
                 className={`w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-xl transition-colors ${
-                  rutaSeleccionada === ruta.id ? 'bg-white/10' : 'hover:bg-white/5'
+                  seleccionada
+                    ? 'bg-white/15 ring-1 ring-white/20'
+                    : rutaSeleccionada
+                      ? 'opacity-40 hover:opacity-70 hover:bg-white/5'
+                      : 'hover:bg-white/5'
                 }`}
               >
                 <span
