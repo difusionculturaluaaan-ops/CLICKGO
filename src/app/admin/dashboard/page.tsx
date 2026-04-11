@@ -8,23 +8,6 @@ import { usePresenciaEnParadas } from '@/features/tracking/hooks/usePresenciaEnP
 import { TarjetaRuta } from '@/features/admin/components/TarjetaRuta'
 import { cerrarSesion } from '@/shared/lib/firebase/auth'
 
-function StatCard({
-  valor,
-  label,
-  color,
-}: {
-  valor: number
-  label: string
-  color: string
-}) {
-  return (
-    <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
-      <p className={`text-3xl font-bold ${color}`}>{valor}</p>
-      <p className="text-gray-500 text-xs mt-1">{label}</p>
-    </div>
-  )
-}
-
 export default function DashboardPage() {
   const { autenticado, usuario, cargando } = useAuth()
   const router = useRouter()
@@ -32,6 +15,8 @@ export default function DashboardPage() {
   const presencia = usePresenciaEnParadas(usuario?.orgId ?? null)
   const totalConectados = Object.values(presencia).reduce((sum, p) => sum + p.count, 0)
   const [busqueda, setBusqueda] = useState('')
+  const [presenciaAbierta, setPresenciaAbierta] = useState(false)
+
   useEffect(() => {
     if (!cargando && (!autenticado || (usuario && usuario.rol !== 'admin' && usuario.rol !== 'superadmin'))) {
       router.replace('/admin')
@@ -51,75 +36,116 @@ export default function DashboardPage() {
     )
   }
 
-  const ahora = new Date().toLocaleTimeString('es-MX', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  const ahora = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+
       {/* Header */}
-      <header className="bg-teal-700 text-white px-4 py-4">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="font-bold text-lg">ClickGo — Admin</h1>
-            <p className="text-teal-200 text-sm">{usuario?.nombre || 'Administrador'}</p>
+      <header className="bg-teal-700 text-white px-4 pt-4 pb-5">
+        <div className="max-w-2xl mx-auto">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="font-bold text-lg leading-tight">ClickGo — Admin</h1>
+              <p className="text-teal-200 text-sm">{usuario?.nombre || 'Administrador'}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-teal-200 text-sm tabular-nums">{ahora}</span>
+              <button onClick={handleLogout} className="text-teal-200 text-sm underline">Salir</button>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <p className="text-teal-200 text-sm">{ahora}</p>
-            <button onClick={handleLogout} className="text-teal-200 text-sm underline">
-              Salir
+
+          {/* Acciones rápidas — dentro del header para que queden pegadas arriba */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => router.push('/admin/mapa')}
+              className="flex items-center gap-2 bg-white/15 hover:bg-white/25 active:bg-white/30 transition-colors rounded-xl px-3 py-2.5"
+            >
+              <span className="text-xl">🗺️</span>
+              <div className="text-left">
+                <p className="text-white font-semibold text-sm leading-tight">Mapa en vivo</p>
+                <p className="text-teal-200 text-xs">Tiempo real</p>
+              </div>
+              <span className="ml-auto text-teal-300 text-sm">→</span>
+            </button>
+            <button
+              onClick={() => router.push('/admin/simulador')}
+              className="flex items-center gap-2 bg-white/15 hover:bg-white/25 active:bg-white/30 transition-colors rounded-xl px-3 py-2.5"
+            >
+              <span className="text-xl">🎬</span>
+              <div className="text-left">
+                <p className="text-white font-semibold text-sm leading-tight">Simulador</p>
+                <p className="text-teal-200 text-xs">Demo de ruta</p>
+              </div>
+              <span className="ml-auto text-teal-300 text-sm">→</span>
             </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-        {/* Stats */}
-        <div className="grid grid-cols-4 gap-3">
-          <StatCard valor={stats.total} label="Total rutas" color="text-gray-800" />
-          <StatCard valor={stats.activas} label="Activas" color="text-blue-600" />
-          <StatCard valor={stats.transmitiendo} label="Transmitiendo" color="text-green-600" />
-          <StatCard valor={stats.sinSenal} label="Sin señal" color="text-red-500" />
+      {/* Contenido principal — scrollable */}
+      <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-4 space-y-4">
+
+        {/* Stats compactos */}
+        <div className="grid grid-cols-4 gap-2">
+          {[
+            { valor: stats.total,          label: 'Rutas',        color: 'text-gray-800' },
+            { valor: stats.activas,        label: 'Activas',      color: 'text-blue-600' },
+            { valor: stats.transmitiendo,  label: 'GPS vivo',     color: 'text-green-600' },
+            { valor: stats.sinSenal,       label: 'Sin señal',    color: 'text-red-500' },
+          ].map(({ valor, label, color }) => (
+            <div key={label} className="bg-white rounded-2xl p-3 shadow-sm text-center">
+              <p className={`text-2xl font-bold ${color}`}>{valor}</p>
+              <p className="text-gray-400 text-[10px] mt-0.5 leading-tight">{label}</p>
+            </div>
+          ))}
         </div>
 
-        {/* Presencia de trabajadores */}
-        {totalConectados > 0 && (
-          <div className="bg-white rounded-2xl p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-semibold text-gray-700 text-sm">Trabajadores con la app abierta</h2>
-              <span className="bg-teal-100 text-teal-700 text-xs font-bold px-2 py-0.5 rounded-full">
-                {totalConectados} 📱
-              </span>
-            </div>
-            <div className="space-y-2">
-              {Object.entries(presencia).map(([paradaId, p]) => (
-                <div key={paradaId} className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500 truncate">{p.nombres.join(', ')}</span>
-                  <span className="shrink-0 text-teal-600 font-medium ml-2">{p.count} en parada</span>
-                </div>
-              ))}
+        {/* Alerta sin señal */}
+        {stats.sinSenal > 0 && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-center gap-3">
+            <span className="text-xl">🚨</span>
+            <div>
+              <p className="font-semibold text-red-700 text-sm">
+                {stats.sinSenal} {stats.sinSenal === 1 ? 'camión sin señal' : 'camiones sin señal'}
+              </p>
+              <p className="text-red-400 text-xs">Verificar con los operadores</p>
             </div>
           </div>
         )}
 
-        {/* Alertas */}
-        {stats.sinSenal > 0 && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-center gap-3">
-            <span className="text-2xl">🚨</span>
-            <div>
-              <p className="font-semibold text-red-700">
-                {stats.sinSenal} {stats.sinSenal === 1 ? 'camión sin señal' : 'camiones sin señal'}
-              </p>
-              <p className="text-red-500 text-sm">Verificar con los operadores</p>
-            </div>
+        {/* Trabajadores conectados — colapsable */}
+        {totalConectados > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <button
+              onClick={() => setPresenciaAbierta(p => !p)}
+              className="w-full flex items-center justify-between px-4 py-3"
+            >
+              <div className="flex items-center gap-2">
+                <span>📱</span>
+                <span className="text-sm font-medium text-gray-700">
+                  {totalConectados} trabajador{totalConectados !== 1 ? 'es' : ''} con app abierta
+                </span>
+              </div>
+              <span className="text-gray-400 text-xs">{presenciaAbierta ? '▲' : '▼'}</span>
+            </button>
+            {presenciaAbierta && (
+              <div className="border-t border-gray-100 px-4 py-3 space-y-2">
+                {Object.entries(presencia).map(([paradaId, p]) => (
+                  <div key={paradaId} className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500 truncate">{p.nombres.join(', ')}</span>
+                    <span className="shrink-0 text-teal-600 font-medium ml-2 text-xs">{p.count} en parada</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         {/* Lista de rutas */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-gray-700">Rutas de hoy</h2>
+            <h2 className="font-semibold text-gray-700 text-sm">Rutas de hoy</h2>
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
               <span className="text-xs text-gray-400">En vivo</span>
@@ -141,9 +167,7 @@ export default function DashboardPage() {
 
           {cargandoRutas ? (
             <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-28 bg-white rounded-2xl animate-pulse" />
-              ))}
+              {[1, 2, 3].map(i => <div key={i} className="h-28 bg-white rounded-2xl animate-pulse" />)}
             </div>
           ) : rutas.length === 0 ? (
             <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
@@ -163,39 +187,30 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {filtradas.map((ruta) => (
-                  <TarjetaRuta key={ruta.id} ruta={ruta} />
-                ))}
+                {filtradas.map(ruta => <TarjetaRuta key={ruta.id} ruta={ruta} />)}
               </div>
             )
           })()}
         </div>
 
-        {/* Mapa en vivo */}
-        <button
-          onClick={() => router.push('/admin/mapa')}
-          className="w-full bg-gray-800 rounded-2xl p-4 shadow-sm text-left hover:bg-gray-700 transition-colors flex items-center gap-4"
-        >
-          <span className="text-3xl">🗺️</span>
-          <div>
-            <p className="font-semibold text-white">Mapa en vivo</p>
-            <p className="text-gray-400 text-xs mt-0.5">Todas las rutas y camiones en tiempo real</p>
-          </div>
-          <span className="ml-auto text-gray-400 text-xl">→</span>
-        </button>
+        {/* Navegación rápida al resto de secciones */}
+        <div className="grid grid-cols-3 gap-2 pb-4">
+          {[
+            { label: 'Rutas',     icon: '🛣️',  path: '/admin/rutas' },
+            { label: 'Usuarios',  icon: '👷',  path: '/admin/usuarios' },
+            { label: 'Reportes',  icon: '📊',  path: '/admin/reportes' },
+          ].map(({ label, icon, path }) => (
+            <button
+              key={path}
+              onClick={() => router.push(path)}
+              className="bg-white rounded-2xl p-3 shadow-sm flex flex-col items-center gap-1 hover:bg-teal-50 active:bg-teal-100 transition-colors"
+            >
+              <span className="text-2xl">{icon}</span>
+              <span className="text-xs text-gray-600 font-medium">{label}</span>
+            </button>
+          ))}
+        </div>
 
-        {/* Acceso rápido al simulador */}
-        <button
-          onClick={() => router.push('/admin/simulador')}
-          className="w-full bg-teal-700 rounded-2xl p-4 shadow-sm text-left hover:bg-teal-600 transition-colors flex items-center gap-4"
-        >
-          <span className="text-3xl">🎬</span>
-          <div>
-            <p className="font-semibold text-white">Simulador de ruta</p>
-            <p className="text-teal-200 text-xs mt-0.5">Activa un camión en tiempo real para el demo</p>
-          </div>
-          <span className="ml-auto text-teal-300 text-xl">→</span>
-        </button>
       </main>
     </div>
   )
