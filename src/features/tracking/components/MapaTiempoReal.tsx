@@ -36,11 +36,21 @@ export function MapaTiempoReal({
 }: MapaTiempoRealProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<unknown>(null)
+  const leafletRef = useRef<unknown>(null)
   const camionMarkerRef = useRef<unknown>(null)
   const userMarkerRef = useRef<unknown>(null)
   const trailRef = useRef<unknown>(null)
   const trailPointsRef = useRef<[number, number][]>([])
   const tileLayerRef = useRef<unknown>(null)
+  // Ref para que el init pueda ver la ubicación más reciente aunque no sea dep
+  const ubicacionRef = useRef<Ubicacion | null>(null)
+  const paradaLatRef = useRef(paradaLat)
+  const paradaLngRef = useRef(paradaLng)
+
+  // Mantener refs sincronizados para que el init pueda leerlos post-async
+  useEffect(() => { ubicacionRef.current = ubicacionCamion }, [ubicacionCamion])
+  useEffect(() => { paradaLatRef.current = paradaLat }, [paradaLat])
+  useEffect(() => { paradaLngRef.current = paradaLng }, [paradaLng])
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return
@@ -61,9 +71,13 @@ export function MapaTiempoReal({
           shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
         })
 
+        const pLat = paradaLatRef.current || 25.4232
+        const pLng = paradaLngRef.current || -100.9963
+
         const map = L.map(mapRef.current, { zoomControl: true })
-        map.setView([paradaLat || 25.4232, paradaLng || -100.9963], 14)
+        map.setView([pLat, pLng], 14)
         mapInstanceRef.current = map
+        leafletRef.current = L
 
         // Tiles iniciales según tema
         const t = TILES[tema]
@@ -80,7 +94,7 @@ export function MapaTiempoReal({
           iconSize: [14, 14],
           iconAnchor: [7, 7],
         })
-        L.marker([paradaLat, paradaLng], { icon: paradaIcon })
+        L.marker([pLat, pLng], { icon: paradaIcon })
           .addTo(map)
           .bindPopup(`📍 ${paradaNombre}`)
 
@@ -88,6 +102,12 @@ export function MapaTiempoReal({
         ro.observe(mapRef.current!)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(map as any)._ro = ro
+
+        // Si la ubicación ya llegó antes de que el mapa terminara de iniciar, dibujarla ahora
+        const ub = ubicacionRef.current
+        if (ub) {
+          dibujarCamion(L, map, ub, pLat, pLng)
+        }
       })
     })
 
@@ -99,6 +119,7 @@ export function MapaTiempoReal({
         m._ro?.disconnect()
         m.remove()
         mapInstanceRef.current = null
+        leafletRef.current = null
         camionMarkerRef.current = null
         userMarkerRef.current = null
         trailRef.current = null
@@ -125,66 +146,67 @@ export function MapaTiempoReal({
     })
   }, [tema])
 
+  // Función reutilizable: dibuja/actualiza el marcador del camión
+  function dibujarCamion(
+    L: typeof import('leaflet'),
+    map: ReturnType<typeof L.map>,
+    ub: Ubicacion,
+    pLat: number,
+    pLng: number
+  ) {
+    const { lat, lng, heading } = ub
+
+    // Trail polyline
+    trailPointsRef.current.push([lat, lng])
+    if (trailPointsRef.current.length > 200) trailPointsRef.current.shift()
+    if (trailRef.current) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(trailRef.current as any).setLatLngs(trailPointsRef.current)
+    } else {
+      trailRef.current = L.polyline(trailPointsRef.current, {
+        color: '#00D4AA', weight: 3, opacity: 0.75,
+      }).addTo(map)
+    }
+
+    // Bus marker
+    const rot = heading ?? 0
+    const camionIcon = L.divIcon({
+      html: `<div style="position:relative;width:22px;height:22px">
+        <div style="background:#f59e0b;width:22px;height:22px;border-radius:50%;border:3px solid white;box-shadow:0 0 10px rgba(245,158,11,0.8)"></div>
+        <div style="position:absolute;top:-8px;left:50%;margin-left:-3px;width:0;height:0;
+          border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:8px solid #f59e0b;
+          transform-origin:3px 14px;transform:rotate(${rot}deg)"></div>
+      </div>`,
+      className: '', iconSize: [22, 22], iconAnchor: [11, 11],
+    })
+
+    if (camionMarkerRef.current) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(camionMarkerRef.current as any).setLatLng([lat, lng])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(camionMarkerRef.current as any).setIcon(camionIcon)
+    } else {
+      camionMarkerRef.current = L.marker([lat, lng], { icon: camionIcon })
+        .addTo(map)
+        .bindPopup('🚌 Tu camión')
+    }
+
+    // Ajustar bounds si el camión está cerca (<50 km de la parada)
+    const distKm = Math.sqrt((lat - pLat) ** 2 + (lng - pLng) ** 2) * 111
+    if (distKm < 50) {
+      map.fitBounds(L.latLngBounds([[lat, lng], [pLat, pLng]]), { padding: [40, 40] })
+    } else {
+      map.setView([pLat, pLng], 14)
+    }
+  }
+
   // Actualizar posición del camión + trail
   useEffect(() => {
-    if (!mapInstanceRef.current || !ubicacionCamion) return
-
-    import('leaflet').then((L) => {
-      const map = mapInstanceRef.current as ReturnType<typeof L.map>
-      const { lat, lng, heading } = ubicacionCamion
-
-      // Trail polyline
-      trailPointsRef.current.push([lat, lng])
-      if (trailPointsRef.current.length > 200) trailPointsRef.current.shift()
-
-      if (trailRef.current) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ;(trailRef.current as any).setLatLngs(trailPointsRef.current)
-      } else {
-        trailRef.current = L.polyline(trailPointsRef.current, {
-          color: '#00D4AA',
-          weight: 3,
-          opacity: 0.75,
-        }).addTo(map)
-      }
-
-      // Bus marker with heading arrow
-      const rot = heading ?? 0
-      const camionIcon = L.divIcon({
-        html: `<div style="position:relative;width:22px;height:22px">
-          <div style="background:#f59e0b;width:22px;height:22px;border-radius:50%;border:3px solid white;box-shadow:0 0 10px rgba(245,158,11,0.8)"></div>
-          <div style="position:absolute;top:-8px;left:50%;margin-left:-3px;width:0;height:0;
-            border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:8px solid #f59e0b;
-            transform-origin:3px 14px;transform:rotate(${rot}deg)"></div>
-        </div>`,
-        className: '',
-        iconSize: [22, 22],
-        iconAnchor: [11, 11],
-      })
-
-      if (camionMarkerRef.current) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ;(camionMarkerRef.current as any).setLatLng([lat, lng])
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ;(camionMarkerRef.current as any).setIcon(camionIcon)
-      } else {
-        camionMarkerRef.current = L.marker([lat, lng], { icon: camionIcon })
-          .addTo(map)
-          .bindPopup('🚌 Tu camión')
-      }
-
-      // Solo ajustar bounds si el bus está cerca (<50 km de la parada)
-      const dLat = lat - paradaLat, dLng = lng - paradaLng
-      const distKm = Math.sqrt(dLat * dLat + dLng * dLng) * 111
-      if (distKm < 50) {
-        map.fitBounds(
-          L.latLngBounds([[lat, lng], [paradaLat, paradaLng]]),
-          { padding: [40, 40] }
-        )
-      } else {
-        map.setView([paradaLat, paradaLng], 14)
-      }
-    })
+    if (!mapInstanceRef.current || !leafletRef.current || !ubicacionCamion) return
+    const L = leafletRef.current as typeof import('leaflet')
+    const map = mapInstanceRef.current as ReturnType<typeof L.map>
+    dibujarCamion(L, map, ubicacionCamion, paradaLat, paradaLng)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ubicacionCamion, paradaLat, paradaLng])
 
   // Posición del trabajador en el mapa
