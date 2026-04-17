@@ -1,4 +1,20 @@
 import Image from 'next/image'
+import {
+  Factory,
+  GraduationCap,
+  Building2,
+  School,
+  Check,
+  Zap,
+  Bus,
+  MapPin,
+  BarChart3,
+  Users,
+  Map,
+  ShieldCheck,
+  Clock,
+  Wifi,
+} from 'lucide-react'
 
 export default function Home() {
   return (
@@ -29,7 +45,7 @@ export default function Home() {
               <span className="w-2 h-2 bg-teal-500 rounded-full animate-pulse" />
               GPS en tiempo real · Sin app · 100% web
             </div>
-            <h1 className="text-5xl md:text-7xl text-gray-900 leading-tight mb-5" style={{ fontFamily: 'var(--font-serif)' }}>
+            <h1 className="text-5xl md:text-6xl text-gray-900 leading-tight mb-5" style={{ fontFamily: 'var(--font-serif)' }}>
               Tus trabajadores saben{' '}
               <span className="text-teal-600">exactamente cuándo llega</span>{' '}
               su camión
@@ -72,7 +88,6 @@ export default function Home() {
                 </div>
                 {/* Mapa simulado */}
                 <div className="relative bg-stone-200 mx-2 rounded-xl overflow-hidden" style={{ height: '220px' }}>
-                  {/* Calles */}
                   <div className="absolute inset-0 opacity-60">
                     <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white" />
                     <div className="absolute top-1/3 left-0 right-0 h-px bg-white" />
@@ -80,23 +95,24 @@ export default function Home() {
                     <div className="absolute left-1/3 top-0 bottom-0 w-0.5 bg-white" />
                     <div className="absolute left-2/3 top-0 bottom-0 w-px bg-white" />
                     <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-amber-400" />
-                    <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-amber-400" />
                   </div>
                   {/* Marcador camión */}
                   <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                    <div className="w-5 h-5 bg-amber-400 rounded-full border-2 border-white shadow-lg flex items-center justify-center">
-                      <span className="text-xs">🚌</span>
+                    <div className="w-6 h-6 bg-amber-400 rounded-full border-2 border-white shadow-lg flex items-center justify-center">
+                      <Bus className="w-3 h-3 text-white" />
                     </div>
                   </div>
                   {/* Marcador parada */}
-                  <div className="absolute bottom-6 right-8">
-                    <div className="w-4 h-4 bg-teal-600 rounded-full border-2 border-white shadow" />
+                  <div className="absolute bottom-6 right-8 flex flex-col items-center">
+                    <div className="w-5 h-5 bg-teal-600 rounded-full border-2 border-white shadow flex items-center justify-center">
+                      <MapPin className="w-2.5 h-2.5 text-white" />
+                    </div>
                     <p className="text-xs text-teal-800 font-bold mt-0.5 whitespace-nowrap">Tu parada</p>
                   </div>
                 </div>
                 {/* Panel ETA */}
                 <div className="mx-2 mt-2 bg-yellow-500 rounded-xl p-2.5 flex items-center gap-2">
-                  <span className="text-lg">⚡</span>
+                  <Zap className="w-4 h-4 text-white shrink-0" />
                   <div>
                     <p className="text-white font-bold text-xs">¡Ya viene!</p>
                     <p className="text-yellow-100 text-xs">A menos de 5 minutos</p>
@@ -229,80 +245,119 @@ export default function Home() {
           <div className="grid md:grid-cols-2 gap-6">
             {[
               {
-                icono: '🏭',
+                icono: Factory,
                 titulo: 'Maquiladoras',
                 desc: 'Trabajadores de turno matutino y vespertino que esperan el camión en colonias distantes de Ciudad Industrial. Con ClickGo saben exactamente cuándo salir de casa.',
                 tag: 'Caso principal',
                 tagColor: 'bg-teal-100 text-teal-700',
+                iconColor: 'text-teal-600 bg-teal-50',
               },
               {
-                icono: '🎓',
+                icono: GraduationCap,
                 titulo: 'Universidades',
                 desc: 'Rutas fijas de camión universitario como el BUITRE de la UAAAN. Estudiantes con mapa en tiempo real en lugar de esperar sin información en la parada.',
                 tag: 'En evaluación',
                 tagColor: 'bg-blue-100 text-blue-700',
+                iconColor: 'text-blue-600 bg-blue-50',
               },
               {
-                icono: '🏢',
+                icono: Building2,
                 titulo: 'Empresas medianas',
                 desc: 'Cualquier empresa con transporte de personal entre puntos fijos. Reduce llamadas al conductor y quejas de trabajadores retrasados.',
                 tag: 'Compatible',
                 tagColor: 'bg-gray-200 text-gray-600',
+                iconColor: 'text-gray-500 bg-gray-100',
               },
               {
-                icono: '🏫',
+                icono: School,
                 titulo: 'Colegios',
                 desc: 'Padres de familia que quieren saber en qué punto de la ruta va el camión escolar. Menos ansiedad, más tranquilidad.',
                 tag: 'Compatible',
                 tagColor: 'bg-gray-200 text-gray-600',
+                iconColor: 'text-gray-500 bg-gray-100',
               },
-            ].map((item) => (
-              <div key={item.titulo} className="bg-white rounded-2xl p-6 shadow-sm">
-                <div className="flex items-start justify-between mb-3">
-                  <span className="text-3xl">{item.icono}</span>
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${item.tagColor}`}>{item.tag}</span>
+            ].map((item) => {
+              const Icono = item.icono
+              return (
+                <div key={item.titulo} className="bg-white rounded-2xl p-6 shadow-sm">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${item.iconColor}`}>
+                      <Icono className="w-5 h-5" />
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${item.tagColor}`}>{item.tag}</span>
+                  </div>
+                  <h3 className="font-bold text-gray-900 text-lg mb-2">{item.titulo}</h3>
+                  <p className="text-gray-500 text-sm leading-relaxed">{item.desc}</p>
                 </div>
-                <h3 className="font-bold text-gray-900 text-lg mb-2">{item.titulo}</h3>
-                <p className="text-gray-500 text-sm leading-relaxed">{item.desc}</p>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </section>
 
+      {/* ── CARACTERÍSTICAS ──────────────────────────────────────────────── */}
+      <section className="max-w-5xl mx-auto px-6 py-24">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl text-gray-900 mb-4" style={{ fontFamily: 'var(--font-serif)' }}>Todo lo que necesitas</h2>
+          <p className="text-gray-500 text-lg">Sin apps que instalar. Funciona en cualquier celular.</p>
+        </div>
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-5">
+          {[
+            { icono: Map,         titulo: 'Mapa en tiempo real',      desc: 'El camión se mueve en pantalla cada pocos segundos.' },
+            { icono: Clock,       titulo: 'ETA preciso',              desc: 'Notificación cuando el camión está a 5 minutos.' },
+            { icono: BarChart3,   titulo: 'Reportes de puntualidad',  desc: 'Historial diario por ruta con minutos de retraso.' },
+            { icono: Users,       titulo: 'Presencia en paradas',     desc: 'El conductor ve cuántos trabajadores esperan en cada parada.' },
+            { icono: Wifi,        titulo: 'Sin instalación',          desc: 'Funciona desde el navegador. Sin descargar nada.' },
+            { icono: ShieldCheck, titulo: 'Acceso por organización',  desc: 'Cada empresa tiene su propio espacio privado.' },
+          ].map(({ icono: Icono, titulo, desc }) => (
+            <div key={titulo} className="bg-gray-50 rounded-2xl p-5 flex gap-4">
+              <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center shrink-0">
+                <Icono className="w-5 h-5 text-teal-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-gray-800 text-sm mb-1">{titulo}</p>
+                <p className="text-gray-500 text-xs leading-relaxed">{desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* ── PRECIO ───────────────────────────────────────────────────────── */}
-      <section id="precio" className="max-w-4xl mx-auto px-6 py-24 text-center">
-        <h2 className="text-4xl text-gray-900 mb-4" style={{ fontFamily: 'var(--font-serif)' }}>Precio simple y justo</h2>
-        <p className="text-gray-500 text-lg mb-12">Sin sorpresas. Cancela cuando quieras.</p>
-        <div className="max-w-sm mx-auto bg-white border-2 border-teal-200 rounded-3xl p-8 shadow-xl shadow-teal-50">
-          <p className="text-gray-500 text-sm font-medium mb-2">Por unidad / por mes</p>
-          <div className="flex items-end justify-center gap-1 mb-2">
-            <span className="text-6xl font-black text-gray-900">$500</span>
-            <span className="text-gray-400 text-lg mb-2">MXN</span>
+      <section id="precio" className="bg-gray-50 py-24">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <h2 className="text-4xl text-gray-900 mb-4" style={{ fontFamily: 'var(--font-serif)' }}>Precio simple y justo</h2>
+          <p className="text-gray-500 text-lg mb-12">Sin sorpresas. Cancela cuando quieras.</p>
+          <div className="max-w-sm mx-auto bg-white border-2 border-teal-200 rounded-3xl p-8 shadow-xl shadow-teal-50">
+            <p className="text-gray-500 text-sm font-medium mb-2">Por unidad / por mes</p>
+            <div className="flex items-end justify-center gap-1 mb-2">
+              <span className="text-6xl font-black text-gray-900">$500</span>
+              <span className="text-gray-400 text-lg mb-2">MXN</span>
+            </div>
+            <p className="text-gray-400 text-sm mb-8">≈ $25 USD · Sin IVA</p>
+            <ul className="text-left space-y-3 mb-8">
+              {[
+                'GPS en tiempo real para todos los trabajadores',
+                'App conductor + trabajador + admin',
+                'Notificaciones push ilimitadas',
+                'Reportes de puntualidad',
+                'Soporte por WhatsApp',
+                'Sin límite de usuarios por ruta',
+              ].map((feat) => (
+                <li key={feat} className="flex items-center gap-2 text-sm text-gray-600">
+                  <Check className="w-4 h-4 text-teal-500 shrink-0" />
+                  {feat}
+                </li>
+              ))}
+            </ul>
+            <a
+              href="#contacto"
+              className="block w-full bg-teal-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-teal-700 transition-colors"
+            >
+              Empezar ahora
+            </a>
+            <p className="text-gray-400 text-xs mt-3">15 días de prueba gratis para nuevos clientes</p>
           </div>
-          <p className="text-gray-400 text-sm mb-8">≈ $25 USD · Sin IVA</p>
-          <ul className="text-left space-y-3 mb-8">
-            {[
-              'GPS en tiempo real para todos los trabajadores',
-              'App conductor + trabajador + admin',
-              'Notificaciones push ilimitadas',
-              'Reportes de puntualidad',
-              'Soporte por WhatsApp',
-              'Sin límite de usuarios por ruta',
-            ].map((feat) => (
-              <li key={feat} className="flex items-center gap-2 text-sm text-gray-600">
-                <span className="text-teal-500 font-bold">✓</span>
-                {feat}
-              </li>
-            ))}
-          </ul>
-          <a
-            href="#contacto"
-            className="block w-full bg-teal-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-teal-700 transition-colors"
-          >
-            Empezar ahora
-          </a>
-          <p className="text-gray-400 text-xs mt-3">15 días de prueba gratis para nuevos clientes</p>
         </div>
       </section>
 
