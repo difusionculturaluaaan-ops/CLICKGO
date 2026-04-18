@@ -1,6 +1,7 @@
 import {
   signInWithPhoneNumber,
   signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   RecaptchaVerifier,
   ConfirmationResult,
   signOut,
@@ -61,6 +62,11 @@ export async function confirmarCodigo(
 
 export async function iniciarSesionEmail(email: string, password: string): Promise<User> {
   const result = await signInWithEmailAndPassword(auth, email, password)
+  return result.user
+}
+
+export async function crearCuentaEmail(email: string, password: string): Promise<User> {
+  const result = await createUserWithEmailAndPassword(auth, email, password)
   return result.user
 }
 

@@ -23,7 +23,12 @@
       "Bash(npx tsc:*)",
       "Read(//c/Users/image/.claude/projects/c--Users-image-Developer-software-clickgo/memory\" 2>/dev/**)",
       "Read(//c/Users/image/.claude/projects/c--Users-image-Developer-software-clickgo/memory/**)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://sigo-55fff.firebaseapp.com/__/auth/handler\")"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://sigo-55fff.firebaseapp.com/__/auth/handler\")",
+      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('firebase:', p.dependencies.firebase\\); console.log\\('next:', p.dependencies.next\\)\")",
+      "Bash(npm install:*)",
+      "Bash(curl -s http://localhost:3000/superadmin/setup)",
+      "Bash(grep \"RECAPTCHA\" .env.local)",
+      "Bash(grep \"RECAPTCHA\" .env)"
     ]
   }
 }

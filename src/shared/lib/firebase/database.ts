@@ -135,6 +135,12 @@ export async function crearOActualizarUsuario(userId: string, datos: Partial<Usu
   return update(ref(db, `usuarios/${userId}`), datos)
 }
 
+export async function listarTodosUsuarios(): Promise<Usuario[]> {
+  const snap = await get(ref(db, 'usuarios'))
+  if (!snap.exists()) return []
+  return Object.values(snap.val() as Record<string, Usuario>)
+}
+
 /**
  * Busca un perfil de usuario por número de teléfono dentro de una org.
  * Usado para vincular perfiles pre-creados por admin cuando el operador inicia sesión.
