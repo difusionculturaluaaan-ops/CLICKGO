@@ -1,24 +1,22 @@
 {
   "rules": {
     "usuarios": {
-      ".read": "auth != null",
-      ".write": "auth != null",
+      ".read": "auth != null && root.child('usuarios').child(auth.uid).child('rol').val() === 'superadmin'",
       "$userId": {
-        ".read": "auth != null"
+        ".read": "auth != null && (auth.uid === $userId || root.child('usuarios').child(auth.uid).child('orgId').val() === root.child('usuarios').child($userId).child('orgId').val())",
+        ".write": "auth != null && auth.uid === $userId"
       }
     },
     "rutas": {
       ".read": "auth != null",
       "$rutaId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
+        ".write": "auth != null && (newData.exists() ? newData.child('orgId').val() : data.child('orgId').val()) === root.child('usuarios').child(auth.uid).child('orgId').val()"
       }
     },
     "ubicaciones": {
       ".read": "auth != null",
       "$rutaId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
+        ".write": "auth != null && root.child('rutas').child($rutaId).child('orgId').val() === root.child('usuarios').child(auth.uid).child('orgId').val()"
       }
     },
     "presencia": {
@@ -42,7 +40,11 @@
       }
     },
     "organizaciones": {
-      ".read": "auth != null"
+      ".read": "auth != null && root.child('usuarios').child(auth.uid).child('rol').val() === 'superadmin'",
+      ".write": "auth != null && root.child('usuarios').child(auth.uid).child('rol').val() === 'superadmin'",
+      "$orgId": {
+        ".read": "auth != null && (root.child('usuarios').child(auth.uid).child('orgId').val() === $orgId || root.child('usuarios').child(auth.uid).child('rol').val() === 'superadmin')"
+      }
     },
     "preregistros": {
       "$orgId": {
