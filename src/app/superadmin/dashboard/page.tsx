@@ -193,7 +193,7 @@ export default function SuperAdminDashboardPage() {
           ) : (
             <div className="space-y-3">
               {stats.map(({ org, usuarios, rutas, rutasActivas }) => (
-                <div key={org.id} className="bg-gray-900 rounded-2xl p-5 border border-gray-800 hover:border-gray-700 transition-colors">
+                <div key={org.id} className="bg-gray-900 rounded-2xl p-5 border border-gray-800 hover:border-gray-700 transition-colors cursor-pointer" onClick={() => router.push(`/superadmin/orgs/${org.id}`)}>
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
