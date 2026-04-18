@@ -23,4 +23,5 @@ if (!admin.apps.length) {
 
 export const adminAuth = admin.auth()
 export const adminDb = admin.database()
+export const adminMessaging = admin.messaging()
 export default admin

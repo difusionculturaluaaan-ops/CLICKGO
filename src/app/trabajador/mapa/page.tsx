@@ -145,7 +145,9 @@ export default function TrabajadorMapaPage() {
   const { ubicacion, eta, conectado } = useGPSReceiver(
     rutaVista?.id ?? null,
     parada?.lat ?? 0,
-    parada?.lng ?? 0
+    parada?.lng ?? 0,
+    parada?.id ?? null,
+    usuario?.orgId ?? null,
   )
 
   // Presencia automática — se registra al abrir la app, se borra al cerrarla
