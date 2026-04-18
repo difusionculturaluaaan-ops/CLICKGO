@@ -11,8 +11,21 @@ import { cerrarSesion } from '@/shared/lib/firebase/auth'
 export default function DashboardPage() {
   const { autenticado, usuario, cargando } = useAuth()
   const router = useRouter()
-  const { rutas, stats, cargando: cargandoRutas } = useRutasActivas(usuario?.orgId ?? null)
-  const presencia = usePresenciaEnParadas(usuario?.orgId ?? null)
+
+  const [orgImpersonada, setOrgImpersonada] = useState<{ id: string; nombre: string } | null>(null)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const id = sessionStorage.getItem('impersonando_orgId')
+      const nombre = sessionStorage.getItem('impersonando_orgNombre')
+      if (id && nombre) setOrgImpersonada({ id, nombre })
+    }
+  }, [])
+
+  const orgId = orgImpersonada?.id ?? usuario?.orgId ?? null
+
+  const { rutas, stats, cargando: cargandoRutas } = useRutasActivas(orgId)
+  const presencia = usePresenciaEnParadas(orgId)
   const totalConectados = Object.values(presencia).reduce((sum, p) => sum + p.count, 0)
   const [busqueda, setBusqueda] = useState('')
   const [presenciaAbierta, setPresenciaAbierta] = useState(false)
@@ -22,6 +35,12 @@ export default function DashboardPage() {
       router.replace('/admin')
     }
   }, [autenticado, usuario, cargando, router])
+
+  function salirImpersonacion() {
+    sessionStorage.removeItem('impersonando_orgId')
+    sessionStorage.removeItem('impersonando_orgNombre')
+    router.replace('/superadmin/dashboard')
+  }
 
   async function handleLogout() {
     await cerrarSesion()
@@ -40,6 +59,16 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+
+      {/* Banner impersonación */}
+      {orgImpersonada && (
+        <div className="bg-amber-400 text-amber-900 px-4 py-2 flex items-center justify-between text-sm font-medium">
+          <span>Viendo como: <strong>{orgImpersonada.nombre}</strong></span>
+          <button onClick={salirImpersonacion} className="underline hover:no-underline">
+            ← Volver a superadmin
+          </button>
+        </div>
+      )}
 
       {/* Header */}
       <header className="bg-teal-700 text-white px-4 pt-4 pb-5">

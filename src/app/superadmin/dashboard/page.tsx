@@ -6,7 +6,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth'
 import { listarOrganizaciones, listarTodosUsuarios, obtenerRutasPorOrg, crearOrganizacion } from '@/shared/lib/firebase/database'
 import { cerrarSesion } from '@/shared/lib/firebase/auth'
 import type { Organization, Usuario, Ruta, OrgType } from '@/shared/types'
-import { Building2, Users, Route, Calendar, LogOut, RefreshCw, Copy, Check, Plus, X } from 'lucide-react'
+import { Building2, Users, Route, Calendar, LogOut, RefreshCw, Copy, Check, Plus, X, ExternalLink } from 'lucide-react'
 
 const TIPO_LABEL: Record<string, string> = {
   maquila: 'Maquiladora',
@@ -227,16 +227,30 @@ export default function SuperAdminDashboardPage() {
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => copiarId(org.id)}
-                      className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors shrink-0 mt-1"
-                      title="Copiar orgId"
-                    >
-                      {copiado === org.id
-                        ? <><Check className="w-3 h-3 text-teal-400" /><span className="text-teal-400">Copiado</span></>
-                        : <><Copy className="w-3 h-3" /><span className="font-mono truncate max-w-[120px]">{org.id}</span></>
-                      }
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0 mt-1">
+                      <button
+                        onClick={() => {
+                          sessionStorage.setItem('impersonando_orgId', org.id)
+                          sessionStorage.setItem('impersonando_orgNombre', org.nombre)
+                          router.push('/admin/dashboard')
+                        }}
+                        className="flex items-center gap-1.5 text-xs bg-teal-900 text-teal-300 hover:bg-teal-800 px-2.5 py-1 rounded-lg transition-colors"
+                        title="Ver panel de esta org"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        Ver panel
+                      </button>
+                      <button
+                        onClick={() => copiarId(org.id)}
+                        className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+                        title="Copiar orgId"
+                      >
+                        {copiado === org.id
+                          ? <><Check className="w-3 h-3 text-teal-400" /><span className="text-teal-400">Copiado</span></>
+                          : <><Copy className="w-3 h-3" /><span className="font-mono truncate max-w-[100px]">{org.id}</span></>
+                        }
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
