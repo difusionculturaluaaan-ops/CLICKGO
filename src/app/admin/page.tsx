@@ -11,7 +11,9 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!cargando && autenticado) {
-      if (usuario?.rol === 'admin' || usuario?.rol === 'superadmin') {
+      if (usuario?.rol === 'superadmin') {
+        router.replace('/superadmin/dashboard')
+      } else if (usuario?.rol === 'admin') {
         router.replace('/admin/dashboard')
       }
       // Si no es admin, se muestra la pantalla de "sin acceso" abajo

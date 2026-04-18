@@ -1,10 +1,8 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/features/auth/hooks/useAuth'
-import { confirmarCodigo } from '@/shared/lib/firebase/auth'
-import { auth } from '@/shared/lib/firebase/config'
-import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth'
+import { enviarCodigoSMS, confirmarCodigo, limpiarRecaptcha } from '@/shared/lib/firebase/auth'
 import type { ConfirmationResult } from 'firebase/auth'
 
 export default function SuperAdminLoginPage() {
@@ -16,7 +14,6 @@ export default function SuperAdminLoginPage() {
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const verifierRef = useRef<RecaptchaVerifier | null>(null)
 
   useEffect(() => {
     if (!cargando && autenticado && usuario?.rol === 'superadmin') {
@@ -32,7 +29,7 @@ export default function SuperAdminLoginPage() {
   }, [autenticado, usuario])
 
   useEffect(() => {
-    return () => { verifierRef.current?.clear() }
+    return () => { limpiarRecaptcha() }
   }, [])
 
   async function handleEnviarSMS(e: React.FormEvent) {
@@ -40,20 +37,20 @@ export default function SuperAdminLoginPage() {
     setError('')
     setLoading(true)
     try {
-      verifierRef.current?.clear()
-      verifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible',
-      })
       const numero = telefono.startsWith('+') ? telefono : `+52${telefono}`
-      const result = await signInWithPhoneNumber(auth, numero, verifierRef.current)
+      const result = await enviarCodigoSMS(numero)
       setConfirmationResult(result)
       setPaso('codigo')
     } catch (err: unknown) {
       const code = (err as { code?: string })?.code ?? ''
-      const msg = (err as { message?: string })?.message ?? ''
-      setError(`Error: ${code || msg}`)
-      verifierRef.current?.clear()
-      verifierRef.current = null
+      if (code === 'auth/too-many-requests') {
+        setError('Demasiados intentos. Espera unos minutos.')
+      } else if (code === 'auth/invalid-phone-number') {
+        setError('Número inválido. Usa formato +52XXXXXXXXXX.')
+      } else {
+        setError(`Error al enviar SMS (${code || 'desconocido'})`)
+      }
+      limpiarRecaptcha()
     } finally {
       setLoading(false)
     }
@@ -66,6 +63,7 @@ export default function SuperAdminLoginPage() {
     setLoading(true)
     try {
       await confirmarCodigo(confirmationResult, codigo)
+      limpiarRecaptcha()
     } catch {
       setError('Código incorrecto. Intenta de nuevo.')
       setLoading(false)
@@ -88,6 +86,9 @@ export default function SuperAdminLoginPage() {
           <p className="text-gray-400 text-sm mt-1">Panel de control — Superadmin</p>
         </div>
 
+        {/* Siempre en el DOM — igual que WorkerRegistrationForm */}
+        <div id="recaptcha-container" className="flex justify-center mb-2" />
+
         <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800 space-y-4">
           {paso === 'telefono' ? (
             <form onSubmit={handleEnviarSMS} className="space-y-4">
@@ -102,8 +103,6 @@ export default function SuperAdminLoginPage() {
                   placeholder="+52 844 000 0000"
                 />
               </div>
-
-              <div id="recaptcha-container" />
 
               {error && <p className="text-red-400 text-sm text-center">{error}</p>}
 
@@ -139,7 +138,7 @@ export default function SuperAdminLoginPage() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || codigo.length !== 6}
                 className="w-full py-3 bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white font-bold rounded-xl transition-colors"
               >
                 {loading ? 'Verificando…' : 'Entrar'}

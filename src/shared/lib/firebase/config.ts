@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app'
 import { getDatabase } from 'firebase/database'
 import { getAuth } from 'firebase/auth'
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check'
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -14,6 +15,20 @@ const firebaseConfig = {
 
 // Singleton — evita inicializar múltiples veces en hot reload
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig)
+
+if (typeof window !== 'undefined' && getApps().length === 1) {
+  // En desarrollo usa el debug token; en producción usa la sitekey Enterprise
+  if (process.env.NEXT_PUBLIC_APPCHECK_DEBUG_TOKEN) {
+    (self as unknown as Record<string, string>).FIREBASE_APPCHECK_DEBUG_TOKEN =
+      process.env.NEXT_PUBLIC_APPCHECK_DEBUG_TOKEN
+  }
+  initializeAppCheck(app, {
+    provider: new ReCaptchaEnterpriseProvider(
+      process.env.NEXT_PUBLIC_RECAPTCHA_ENTERPRISE_KEY ?? 'debug'
+    ),
+    isTokenAutoRefreshEnabled: true,
+  })
+}
 
 export const db = getDatabase(app)
 export const auth = getAuth(app)
