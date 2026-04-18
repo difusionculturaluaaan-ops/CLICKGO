@@ -3,10 +3,10 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/features/auth/hooks/useAuth'
-import { listarOrganizaciones, listarTodosUsuarios, obtenerRutasPorOrg } from '@/shared/lib/firebase/database'
+import { listarOrganizaciones, listarTodosUsuarios, obtenerRutasPorOrg, crearOrganizacion } from '@/shared/lib/firebase/database'
 import { cerrarSesion } from '@/shared/lib/firebase/auth'
-import type { Organization, Usuario, Ruta } from '@/shared/types'
-import { Building2, Users, Route, Calendar, LogOut, RefreshCw, Copy, Check } from 'lucide-react'
+import type { Organization, Usuario, Ruta, OrgType } from '@/shared/types'
+import { Building2, Users, Route, Calendar, LogOut, RefreshCw, Copy, Check, Plus, X } from 'lucide-react'
 
 const TIPO_LABEL: Record<string, string> = {
   maquila: 'Maquiladora',
@@ -35,6 +35,11 @@ export default function SuperAdminDashboardPage() {
   const [stats, setStats] = useState<OrgStats[]>([])
   const [cargandoStats, setCargandoStats] = useState(true)
   const [copiado, setCopiado] = useState<string | null>(null)
+  const [modalAbierto, setModalAbierto] = useState(false)
+  const [nuevoNombre, setNuevoNombre] = useState('')
+  const [nuevoTipo, setNuevoTipo] = useState<OrgType>('maquila')
+  const [creando, setCreando] = useState(false)
+  const [errorModal, setErrorModal] = useState('')
 
   useEffect(() => {
     if (!cargando && (!autenticado || usuario?.rol !== 'superadmin')) {
@@ -76,6 +81,24 @@ export default function SuperAdminDashboardPage() {
     router.replace('/superadmin')
   }
 
+  async function handleCrearOrg(e: React.FormEvent) {
+    e.preventDefault()
+    if (!nuevoNombre.trim()) return
+    setErrorModal('')
+    setCreando(true)
+    try {
+      await crearOrganizacion({ nombre: nuevoNombre, tipo: nuevoTipo })
+      setModalAbierto(false)
+      setNuevoNombre('')
+      setNuevoTipo('maquila')
+      await cargarStats()
+    } catch {
+      setErrorModal('Error al crear la organización. Intenta de nuevo.')
+    } finally {
+      setCreando(false)
+    }
+  }
+
   function copiarId(id: string) {
     navigator.clipboard.writeText(id)
     setCopiado(id)
@@ -113,6 +136,13 @@ export default function SuperAdminDashboardPage() {
               title="Actualizar"
             >
               <RefreshCw className={`w-4 h-4 ${cargandoStats ? 'animate-spin' : ''}`} />
+            </button>
+            <button
+              onClick={() => setModalAbierto(true)}
+              className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-500 text-white text-sm font-medium px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Nueva org
             </button>
             <button
               onClick={handleLogout}
@@ -215,6 +245,59 @@ export default function SuperAdminDashboardPage() {
         </div>
 
       </main>
+
+      {/* Modal nueva organización */}
+      {modalAbierto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/60">
+          <div className="w-full max-w-sm bg-gray-900 rounded-2xl border border-gray-800 p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-white font-semibold">Nueva organización</h2>
+              <button onClick={() => setModalAbierto(false)} className="text-gray-500 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCrearOrg} className="space-y-4">
+              <div>
+                <label className="text-xs font-medium text-gray-400 block mb-1">Nombre</label>
+                <input
+                  type="text"
+                  value={nuevoNombre}
+                  onChange={e => setNuevoNombre(e.target.value)}
+                  required
+                  autoFocus
+                  placeholder="Ej. Maquiladora San José"
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-400 block mb-1">Tipo</label>
+                <select
+                  value={nuevoTipo}
+                  onChange={e => setNuevoTipo(e.target.value as OrgType)}
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                >
+                  <option value="maquila">Maquiladora</option>
+                  <option value="universidad">Universidad</option>
+                  <option value="empresa">Empresa</option>
+                  <option value="colegio">Colegio</option>
+                </select>
+              </div>
+
+              {errorModal && <p className="text-red-400 text-sm text-center">{errorModal}</p>}
+
+              <button
+                type="submit"
+                disabled={creando || !nuevoNombre.trim()}
+                className="w-full py-3 bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white font-bold rounded-xl transition-colors"
+              >
+                {creando ? 'Creando…' : 'Crear organización'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

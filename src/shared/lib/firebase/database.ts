@@ -206,6 +206,22 @@ export async function listarOrganizaciones(): Promise<Organization[]> {
   }))
 }
 
+export async function crearOrganizacion(data: {
+  nombre: string
+  tipo: Organization['tipo']
+}): Promise<string> {
+  const id = `org-${Date.now()}`
+  await set(ref(db, `organizaciones/${id}`), {
+    id,
+    nombre: data.nombre.trim(),
+    tipo: data.tipo,
+    branding: { colorPrimario: '#0d9488', colorSecundario: '#134e4a' },
+    config: { intervaloGPS: 12, distanciaAlerta: 500, zonaHoraria: 'America/Monterrey' },
+    creadoEn: Date.now(),
+  })
+  return id
+}
+
 // ─── Historial de puntualidad ──────────────────────────────────────────────────
 
 export interface RegistroParada {
