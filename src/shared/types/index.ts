@@ -76,6 +76,7 @@ export interface Usuario {
   empleadoId?: string          // solo para trabajadores (número de empleado maquiladora)
   numeroUnidad?: string        // solo para choferes/operadores
   fcmToken?: string            // para push notifications
+  tiempoCaminataMin?: number   // minutos caminando desde casa habitual a su parada
   creadoEn: number
 }
 

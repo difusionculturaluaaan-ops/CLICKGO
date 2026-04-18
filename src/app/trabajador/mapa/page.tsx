@@ -5,6 +5,7 @@ import nextDynamic from 'next/dynamic'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useGPSReceiver } from '@/features/tracking/hooks/useGPSReceiver'
 import { usePresenciaWorker } from '@/features/tracking/hooks/usePresenciaWorker'
+import { useSalidaCasa } from '@/features/tracking/hooks/useSalidaCasa'
 import { useFCMToken } from '@/shared/hooks/useFCMToken'
 import { obtenerRuta } from '@/shared/lib/firebase/database'
 import { obtenerRutas } from '@/features/routes/services/rutas.service'
@@ -159,6 +160,22 @@ export default function TrabajadorMapaPage() {
   )
 
   const { permiso, solicitarPermiso } = useFCMToken(usuario?.id ?? null)
+
+  const posWorker = workerLat !== null && workerLng !== null
+    ? { lat: workerLat, lng: workerLng }
+    : null
+
+  const { minutosParaSalir, debesSalirAhora, tiempoCaminataMin } = useSalidaCasa({
+    posWorker,
+    paradaLat: parada?.lat ?? 0,
+    paradaLng: parada?.lng ?? 0,
+    etaCamionMin: eta?.minutos ?? null,
+    paradaId: parada?.id ?? null,
+    orgId: usuario?.orgId ?? null,
+    rutaId: rutaVista?.id ?? null,
+    userId: usuario?.id ?? null,
+    tiempoCaminataGuardado: usuario?.tiempoCaminataMin ?? null,
+  })
 
   // Worker's own GPS via geolocation API
   useEffect(() => {
@@ -357,6 +374,30 @@ export default function TrabajadorMapaPage() {
             )}
           </div>
         </div>
+
+        {/* Tarjeta salida de casa */}
+        {posWorker && eta && eta.estado !== 'sin_senal' && (
+          <div className={`rounded-2xl p-4 flex items-center gap-3 ${debesSalirAhora ? 'bg-green-500' : 'bg-gray-800'}`}>
+            <span className="text-3xl">{debesSalirAhora ? '🚶' : '🏠'}</span>
+            <div className="flex-1">
+              {debesSalirAhora ? (
+                <>
+                  <p className="text-white font-bold">¡Sal ahora!</p>
+                  <p className="text-white/80 text-sm">
+                    Llegarás justo cuando arribe el camión ({Math.ceil(tiempoCaminataMin)} min caminando)
+                  </p>
+                </>
+              ) : minutosParaSalir !== null && minutosParaSalir > 0 ? (
+                <>
+                  <p className="text-white font-bold">Sal en {minutosParaSalir} min</p>
+                  <p className="text-gray-400 text-sm">
+                    Tu parada está a ~{Math.ceil(tiempoCaminataMin)} min caminando
+                  </p>
+                </>
+              ) : null}
+            </div>
+          </div>
+        )}
 
         {/* ETA y detalles */}
         {eta && eta.estado !== 'sin_senal' && (
